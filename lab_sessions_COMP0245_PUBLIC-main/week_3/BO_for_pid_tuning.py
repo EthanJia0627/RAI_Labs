@@ -9,12 +9,17 @@ from skopt.space import Real
 from skopt.learning import GaussianProcessRegressor
 from skopt.learning.gaussian_process.kernels import RBF
 from gp_functions import fit_gp_model_1d, plot_gp_results_1d
+from utils import *
+
+
+acq_func = "LCB" ## change this LCB': Lower Confidence Bound 'EI': Expected Improvement 'PI': Probability of Improvement
+length_scale = 10
 
 
 # Configuration for the simulation
 conf_file_name = "pandaconfig.json"  # Configuration file for the robot
 cur_dir = os.path.dirname(os.path.abspath(__file__))
-sim = pb.SimInterface(conf_file_name, conf_file_path_ext = cur_dir)  # Initialize simulation interface
+sim = pb.SimInterface(conf_file_name, conf_file_path_ext = cur_dir,use_gui=False)  # Initialize simulation interface
 
 # Get active joint names from the simulation
 ext_names = sim.getNameActiveJoints()
@@ -86,10 +91,10 @@ def simulate_with_given_pid_values(sim_, kp, kd, episode_duration=10):
         #simulation_time = sim.GetTimeSinceReset()
 
         # Store data for plotting
-        q_mes_all.append(q_mes[0])
-        qd_mes_all.append(qd_mes[0])
-        q_d_all.append(q_des[0])
-        qd_d_all.append(qd_des[0])
+        q_mes_all.append(q_mes)
+        qd_mes_all.append(qd_mes)
+        q_d_all.append(q_des)
+        qd_d_all.append(qd_des)
         
         #time.sleep(0.01)  # Slow down the loop for better visualization
         # get real time
@@ -134,7 +139,7 @@ def main():
     ]
 
     rbf_kernel = RBF(
-    length_scale=1.0,            # Initial length scale
+    length_scale=length_scale,            # Initial length scale
     length_scale_bounds=(1e-2, 1e2)  # Bounds for length scale
     )
 
@@ -148,26 +153,34 @@ def main():
     result = gp_minimize (
     objective,
     space,
-    n_calls=10,
+    n_calls=50,
     base_estimator=gp,  # Use the custom Gaussian Process Regressor
-    acq_func='EI',      # TODO change this LCB': Lower Confidence Bound 'EI': Expected Improvement 'PI': Probability of Improvement
+    acq_func=acq_func,      # TODO change this LCB': Lower Confidence Bound 'EI': Expected Improvement 'PI': Probability of Improvement
     random_state=42)
     
     # Extract the optimal values
     best_kp = result.x[:7]  # Optimal kp vector
     best_kd = result.x[7:]  # Optimal kd vector
-
+    best_result = result.fun
     # Prepare data
     kp0_values_array = np.array(kp0_values).reshape(-1, 1)
     kd0_values_array = np.array(kd0_values).reshape(-1, 1)
     tracking_errors_array = np.array(tracking_errors)
+    save_data([best_kd,best_kp,best_result,tracking_errors],acq_func+f"_{length_scale}")
+    plt.plot(range(len(tracking_errors)),tracking_errors,label = "Tracking Error")
+    plt.plot(range(len(tracking_errors)),np.full_like(tracking_errors,best_result),'r--',label = "Tracking Error")
+    plt.title(f"Tracking Errors with Iteration\nAcquisition Function:{acq_func},Length Scale:{length_scale}")
+    plt.xlabel("Iteration")
+    plt.ylabel("Tracking Error")
+    plt.savefig(savepath+f"/Tracking Errors_{acq_func}_{length_scale}.png")    
+    plt.show()
 
-    # Fit GP models
-    gp_kp0 = fit_gp_model_1d(kp0_values_array, tracking_errors_array)
-    gp_kd0 = fit_gp_model_1d(kd0_values_array, tracking_errors_array)
-    print(f"Optimal Kp: {best_kp}, Optimal Kd: {best_kd}")
-    # Plot the results
-    plot_gp_results_1d(kp0_values_array, kd0_values_array, tracking_errors_array, gp_kp0, gp_kd0)
+    # # Fit GP models
+    # gp_kp0 = fit_gp_model_1d(kp0_values_array, tracking_errors_array)
+    # gp_kd0 = fit_gp_model_1d(kd0_values_array, tracking_errors_array)
+    print(f"Optimal Kp: {best_kp}, Optimal Kd: {best_kd}\nTracking_Error{best_result}")
+    # # Plot the results
+    # plot_gp_results_1d(kp0_values_array, kd0_values_array, tracking_errors_array, gp_kp0, gp_kd0)
 
 
     

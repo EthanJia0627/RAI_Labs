@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 from simulation_and_control import pb, MotorCommands, PinWrapper, feedback_lin_ctrl, dyn_cancel, SinusoidalReference, CartesianDiffKin
 from tracker_model import TrackerModel
+from utils import *
 
 def initialize_simulation(conf_file_name):
     """Initialize simulation and dynamic model."""
@@ -96,7 +97,7 @@ def getCostMatrices(num_joints):
     
     print(Q)
 
-    R = 0.1 * np.eye(num_controls)  # Control input cost matrix
+    R = 0.01 * np.eye(num_controls)  # Control input cost matrix
     
     return Q, R
 
@@ -138,13 +139,13 @@ def main():
     # Specify different amplitude values for each joint
     amplitudes = [np.pi/4, np.pi/6, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4]  # Example amplitudes for joints
     # Specify different frequency values for each joint
-    frequencies = [0.4, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4]  # Example frequencies for joints
+    frequencies = [0.1, 0.08, 0.12, 0.14, 0.09, 0.2, 0.15]  # Example frequencies for joints
 
     # Convert lists to NumPy arrays for easier manipulation in computations
     amplitude = np.array(amplitudes)
     frequency = np.array(frequencies)
     ref = SinusoidalReference(amplitude, frequency, sim.GetInitMotorAngles())  # Initialize the reference
-
+    ref = LinearReference(frequency, sim.GetInitMotorAngles())
 
     # Main control loop
     episode_duration = 5 # duration in seconds

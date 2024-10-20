@@ -14,7 +14,7 @@ from mpl_toolkits.mplot3d import Axes3D  # For 3D plotting
 def fit_gp_model_1d(X_values, y_values):
     # Define the kernel
     rbf_kernel = RBF(
-    length_scale=0.1,            # Initial length scale
+    length_scale=1,            # Initial length scale
     length_scale_bounds=(1e-2, 1e2)  # Bounds for length scale
     )
     
