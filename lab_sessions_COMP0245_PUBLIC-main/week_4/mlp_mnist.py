@@ -61,11 +61,12 @@ for batch_size in batch_sizes:
                     x = self.softmax(x)
                     return x
             
-            model = MLP()
+
             for learning_rate in learning_rates:
             # 3. Model Compilation
                 for opt in optimizers:
                     for loss_func in loss_funcs:
+                        model = MLP()
                         if  loss_func== 'NLLLoss':
                             criterion = nn.NLLLoss()  # Negative Log Likelihood Loss (used with LogSoftmax)
                         elif loss_func == 'MSELoss':
