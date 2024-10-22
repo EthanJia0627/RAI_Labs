@@ -80,7 +80,7 @@ for batch_size in batch_sizes:
                         elif opt == 'RMSprop':
                             optimizer = optim.RMSprop(model.parameters(), lr=learning_rate)                    
                         # 4. Model Training
-                        epochs = 50
+                        epochs = 100
                         train_losses = []
                         valid_losses = []
                         train_accuracies = []
@@ -128,7 +128,7 @@ for batch_size in batch_sizes:
                                     loss = criterion(output, target)  # target is not one-hot encoded in PyTorch
                                 else:
                                     loss = criterion(torch.exp(output), torch.nn.functional.one_hot(target,10).float())
-                                loss.backward()
+
                                 test_loss += loss.item()
                                 pred = output.argmax(dim=1, keepdim=True)
                                 correct += pred.eq(target.view_as(pred)).sum().item()
@@ -141,7 +141,7 @@ for batch_size in batch_sizes:
                         plt.xlabel("Epoch")
                         plt.ylabel("Training Loss")
                         plt.legend()
-                        plt.savefig(savepath+f"/figLoss_{structure}_{loss_func}_{activation}_{opt}_{learning_rate}_{batch_size}.png")
+                        plt.savefig(savepath+f"/fig/Loss_{structure}_{loss_func}_{activation}_{opt}_{learning_rate}_{batch_size}.png")
                         figure = plt.figure(1)
                         plt.title(f"Accuracy by Epoch\n{structure}_{loss_func}_{activation}_{opt}_{learning_rate}_{batch_size}")
                         plt.plot(range(epochs),train_accuracies,"b",label = "Training Accuracy")
