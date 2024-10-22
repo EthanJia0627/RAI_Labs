@@ -98,7 +98,7 @@ for batch_size in batch_sizes:
                                 target = target.to(device)
                                 optimizer.zero_grad()
                                 output = model(data)
-                                if loss_func == "NLLLosss":
+                                if loss_func == "NLLLoss":
                                     loss = criterion(output, target)  # target is not one-hot encoded in PyTorch
                                 else:
                                     loss = criterion(torch.exp(output), torch.nn.functional.one_hot(target,10).float())
@@ -124,7 +124,7 @@ for batch_size in batch_sizes:
                                 data = data.to(device)
                                 target = target.to(device)
                                 output = model(data)
-                                if loss_func == "NLLLosss":
+                                if loss_func == "NLLLoss":
                                     loss = criterion(output, target)  # target is not one-hot encoded in PyTorch
                                 else:
                                     loss = criterion(torch.exp(output), torch.nn.functional.one_hot(target,10).float())
