@@ -12,8 +12,8 @@ from gp_functions import fit_gp_model_1d, plot_gp_results_1d
 from utils import *
 
 
-acq_func = "LCB" ## change this LCB': Lower Confidence Bound 'EI': Expected Improvement 'PI': Probability of Improvement
-length_scale = 10
+acq_func = "PI" ## change this LCB': Lower Confidence Bound 'EI': Expected Improvement 'PI': Probability of Improvement
+length_scale = 0.1
 
 
 # Configuration for the simulation
@@ -30,7 +30,8 @@ source_names = ["pybullet"]  # Define the source for dynamic modeling
 # Create a dynamic model of the robot
 dyn_model = PinWrapper(conf_file_name, "pybullet", ext_names, source_names, False,0,cur_dir)
 num_joints = dyn_model.getNumberofActuatedJoints()
-
+if sim.bot[0].conf['robot_pybullet']['motor_damping']:
+    damping = " with Damping"
 init_joint_angles = sim.GetInitMotorAngles()
 
 print(f"Initial joint angles: {init_joint_angles}")
@@ -80,6 +81,7 @@ def simulate_with_given_pid_values(sim_, kp, kd, episode_duration=10):
         q_des, qd_des = ref.get_values(current_time)  # Desired position and velocity
         # Control command
         cmd.tau_cmd = feedback_lin_ctrl(dyn_model, q_mes, qd_mes, q_des, qd_des, kp, kd)  # Zero torque command
+        cmd.SetControlCmd(cmd.tau_cmd,["torque"]*7)
         sim_.Step(cmd, "torque")  # Simulation step with torque command
 
         # Exit logic with 'q' key
@@ -166,13 +168,13 @@ def main():
     kp0_values_array = np.array(kp0_values).reshape(-1, 1)
     kd0_values_array = np.array(kd0_values).reshape(-1, 1)
     tracking_errors_array = np.array(tracking_errors)
-    save_data([best_kd,best_kp,best_result,tracking_errors],acq_func+f"_{length_scale}")
+    save_data([best_kd,best_kp,best_result,tracking_errors],acq_func+f"_{length_scale}"+damping)
     plt.plot(range(len(tracking_errors)),tracking_errors,label = "Tracking Error")
     plt.plot(range(len(tracking_errors)),np.full_like(tracking_errors,best_result),'r--',label = "Tracking Error")
-    plt.title(f"Tracking Errors with Iteration\nAcquisition Function:{acq_func},Length Scale:{length_scale}")
+    plt.title(f"Tracking Errors with Iteration\nAcquisition Function:{acq_func},Length Scale:{length_scale}"+damping)
     plt.xlabel("Iteration")
-    plt.ylabel("Tracking Error")
-    plt.savefig(savepath+f"/Tracking Errors_{acq_func}_{length_scale}.png")    
+    plt.ylabel("Tracking Error"+damping)
+    plt.savefig(savepath+f"/Tracking Errors_{acq_func}_{length_scale}"+damping+".png")    
     plt.show()
 
     # # Fit GP models

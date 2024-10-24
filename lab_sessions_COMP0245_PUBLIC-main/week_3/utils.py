@@ -64,5 +64,5 @@ def compare(method = "func"):
             plot_error_vs_length_scale(func,[0.1,1,10])
     ...
 
-compare("func")
-compare("length")
+# compare("func")
+# compare("length")
