@@ -38,37 +38,28 @@ class RegulatorModel:
 
         return S_bar, T_bar, Q_bar, R_bar
     
-    def updateSystemMatrices(self,sim,cur_x,cur_u):
-        """
-        Get the system matrices A and B according to the dimensions of the state and control input.
-        
-        Parameters:
-        num_states, number of system states
-        num_controls, number oc conttrol inputs
-        cur_x, current state around which to linearize
-        cur_u, current control input around which to linearize
-       
-        
-        Returns:
-        A: State transition matrix
-        B: Control input matrix
-        """
-        # Check if state_x_for_linearization and cur_u_for_linearization are provided
-        if cur_x is None or cur_u is None:
-            raise ValueError(
-                "state_x_for_linearization and cur_u_for_linearization are not specified.\n"
-                "Please provide the current state and control input for linearization.\n"
-                "Hint: Use the goal state (e.g., zeros) and zero control input at the beginning.\n"
-                "Also, ensure that you implement the linearization logic in the updateSystemMatrices function."
-            )
+def updateSystemMatrices(self, sim, cur_x, cur_u):
+    """
+    Get the system matrices A and B according to the dimensions of the state and control input.
+    
+    Parameters:
+    sim: Simulator object
+    cur_x: Current state around which to linearize
+    cur_u: Current control input around which to linearize
 
-        A =[]
-        B = []
-        num_states = self.n
-        num_controls = self.m
-        num_outputs = self.q
-        time_step = sim.GetTimeStep()
-        
+    Returns:
+    A: State transition matrix
+    B: Control input matrix
+    """
+    # 检查 cur_x 和 cur_u 是否提供
+    if cur_x is None or cur_u is None:
+        raise ValueError(
+            "state_x_for_linearization and cur_u_for_linearization are not specified.\n"
+            "Please provide the current state and control input for linearization.\n"
+            "Hint: Use the goal state (e.g., zeros) and zero control input at the beginning.\n"
+            "Also, ensure that you implement the linearization logic in the updateSystemMatrices function."
+        )
+        """ 
         # get A and B matrices by linearinzing the cotinuous system dynamics
         # The linearized continuous-time system is:
 
@@ -135,7 +126,7 @@ class RegulatorModel:
 
 
         # then linearize A and B matrices
-        #\[
+        # \[
         # A = I + \Delta t \cdot A_c,
         # \]
         # \[
@@ -164,12 +155,42 @@ class RegulatorModel:
         # \end{bmatrix}.
         # \]
         
-        #updating the state and control input matrices
-        self.A = A
-        self.B = B
-        self.C = np.eye(num_outputs)
-        
 
+        # self.A = A
+        # self.B = B
+        # self.C = np.eye(num_outputs) """
+    # 状态和控制输入
+    x0, y0, theta0 = cur_x  # 当前状态 x, y, theta
+    v0, omega0 = cur_u      # 当前控制输入 v 和 omega
+
+    time_step = sim.GetTimeStep()  # 时间步长
+
+    # 连续时间系统的 A_c 矩阵
+    Ac = np.array([
+        [0, 0, -v0 * np.sin(theta0)],
+        [0, 0,  v0 * np.cos(theta0)],
+        [0, 0, 0]
+    ])
+
+    # 连续时间系统的 B_c 矩阵
+    Bc = np.array([
+        [np.cos(theta0), 0],
+        [np.sin(theta0), 0],
+        [0, 1]
+    ])
+
+    # 离散时间系统矩阵的计算
+    I = np.eye(3)  # 单位矩阵 I
+    A = I + time_step * Ac
+    B = time_step * Bc
+
+    # 更新状态矩阵和控制输入矩阵
+    self.A = A
+    self.B = B
+    self.C = np.eye(self.q) 
+
+    return A, B
+        
 
 
 # TODO you can change this function to allow for more passing a vector of gains
