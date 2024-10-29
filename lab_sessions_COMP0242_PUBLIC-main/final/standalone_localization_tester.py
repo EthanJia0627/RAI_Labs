@@ -97,7 +97,7 @@ class Simulator(object):
             dx = lm[0] - self._x_true[0]
             dy = lm[1] - self._x_true[1]
             range_true = np.sqrt(dx**2 + dy**2)
-            bearing_true = np.arctan2(dy,dx)
+            bearing_true = np.arctan2(dy,dx) -self._x_true[2]
             range_meas = range_true + np.random.normal(0, np.sqrt(W_range))
             bearing_meas = bearing_true + np.random.normal(0, np.sqrt(W_bearing))
             y_range.append(range_meas)

@@ -256,9 +256,9 @@ class RobotEstimator_RB(object):
             dx_pred = lm[0] - x_pred[0]
             dy_pred = lm[1] - x_pred[1]
             range_pred = np.sqrt(dx_pred**2 + dy_pred**2)
-            bearing_pred = np.arctan2(dy_pred, dx_pred)
-            bearing_pred = np.arctan2(np.sin(bearing_pred), np.cos(bearing_pred))  # 归一化到 [-π, π]
-            y_pred.append(np.hstack((range_pred,bearing_pred)))
+            bearing_pred = np.arctan2(dy_pred, dx_pred)-x_pred[2]
+            # bearing_pred = np.arctan2(np.sin(bearing_pred), np.cos(bearing_pred))  # 归一化到 [-π, π]
+            y_pred.extend([range_pred,bearing_pred])
 
             
             # Jacobian of the measurement model
@@ -272,13 +272,13 @@ class RobotEstimator_RB(object):
             C_bearing = np.array([
             dy_pred / (range_pred**2),
             -dx_pred / (range_pred**2),
-            0
+            -1
             ])
             C.append(np.vstack((C_range,C_bearing)))
         # Convert lists to arrays
         C = np.array(np.vstack(C))
         y_pred = np.array(y_pred)
-        y = [[y_range[i],y_bearing[i]] for i in range(len(y_range))]
+        y = np.array([[y_range[i],y_bearing[i]] for i in range(len(y_range))]).flatten()
         # Innovation. Look new information! (geddit?)
 
         nu = np.hstack(y - y_pred)

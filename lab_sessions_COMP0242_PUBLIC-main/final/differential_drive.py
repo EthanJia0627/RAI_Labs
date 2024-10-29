@@ -101,12 +101,12 @@ def main():
     # or you can linearize around the current state and control of the robot
     # in the second case case you need to update the matrices A and B at each time step
     # and recall everytime the method updateSystemMatrices
-    state_x_for_linearization = [0,0,0]
-    cur_u_for_linearization = [0,0]
-    regulator.updateSystemMatrices(sim,state_x_for_linearization,cur_u_for_linearization)
+    x0_mpc = [0,0,0]
+    u_mpc = [0,0]
+    regulator.updateSystemMatrices(sim,x0_mpc,u_mpc)
     # Define the cost matrices
     Qcoeff = 1000
-    Rcoeff = 1
+    Rcoeff = 1.5
     regulator.setCostMatrices(Qcoeff,Rcoeff)
    
 
@@ -160,7 +160,8 @@ def main():
    
         # Compute the matrices needed for MPC optimization
         # TODO here you want to update the matrices A and B at each time step if you want to linearize around the current points
-
+        if update_AB:
+            regulator.updateSystemMatrices(sim,x0_mpc,u_mpc)
 
         S_bar, T_bar, Q_bar, R_bar = regulator.propagation_model_regulator_fixed_std()
         H,F = regulator.compute_H_and_F(S_bar, T_bar, Q_bar, R_bar)
