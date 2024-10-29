@@ -38,178 +38,178 @@ class RegulatorModel:
 
         return S_bar, T_bar, Q_bar, R_bar
     
-def updateSystemMatrices(self, sim, cur_x, cur_u):
-    """
-    Get the system matrices A and B according to the dimensions of the state and control input.
-    
-    Parameters:
-    sim: Simulator object
-    cur_x: Current state around which to linearize
-    cur_u: Current control input around which to linearize
-
-    Returns:
-    A: State transition matrix
-    B: Control input matrix
-    """
-    # 检查 cur_x 和 cur_u 是否提供
-    if cur_x is None or cur_u is None:
-        raise ValueError(
-            "state_x_for_linearization and cur_u_for_linearization are not specified.\n"
-            "Please provide the current state and control input for linearization.\n"
-            "Hint: Use the goal state (e.g., zeros) and zero control input at the beginning.\n"
-            "Also, ensure that you implement the linearization logic in the updateSystemMatrices function."
-        )
-        """ 
-        # get A and B matrices by linearinzing the cotinuous system dynamics
-        # The linearized continuous-time system is:
-
-        # \[
-        # \dot{\mathbf{x}} = A_c (\mathbf{x} - \mathbf{x}_0) + B_c (\mathbf{u} - \mathbf{u}_0).
-        # \]
-
-        # \textbf{Compute \( A_c = \left. \dfrac{\partial \mathbf{f}}{\partial \mathbf{x}} \right|_{(\mathbf{x}_0, \mathbf{u}_0)} \):}
-
-        # \[
-        # A_c = \begin{bmatrix}
-        # \frac{\partial \dot{x}}{\partial x} & \frac{\partial \dot{x}}{\partial y} & \frac{\partial \dot{x}}{\partial \theta} \\
-        # \frac{\partial \dot{y}}{\partial x} & \frac{\partial \dot{y}}{\partial y} & \frac{\partial \dot{y}}{\partial \theta} \\
-        # \frac{\partial \dot{\theta}}{\partial x} & \frac{\partial \dot{\theta}}{\partial y} & \frac{\partial \dot{\theta}}{\partial \theta}
-        # \end{bmatrix}.
-        # \]
-
-        # Compute the partial derivatives:
-
-        # \begin{align*}
-        # \frac{\partial \dot{x}}{\partial x} &= 0, & \frac{\partial \dot{x}}{\partial y} &= 0, & \frac{\partial \dot{x}}{\partial \theta} &= -v_0 \sin(\theta_0), \\
-        # \frac{\partial \dot{y}}{\partial x} &= 0, & \frac{\partial \dot{y}}{\partial y} &= 0, & \frac{\partial \dot{y}}{\partial \theta} &= v_0 \cos(\theta_0), \\
-        # \frac{\partial \dot{\theta}}{\partial x} &= 0, & \frac{\partial \dot{\theta}}{\partial y} &= 0, & \frac{\partial \dot{\theta}}{\partial \theta} &= 0.
-        # \end{align*}
-
-        # Thus,
-
-        # \[
-        # A_c = \begin{bmatrix}
-        # 0 & 0 & -v_0 \sin(\theta_0) \\
-        # 0 & 0 & v_0 \cos(\theta_0) \\
-        # 0 & 0 & 0
-        # \end{bmatrix}.
-        # \]
-
-        # \textbf{Compute \( B_c = \left. \dfrac{\partial \mathbf{f}}{\partial \mathbf{u}} \right|_{(\mathbf{x}_0, \mathbf{u}_0)} \):}
-
-        # \[
-        # B_c = \begin{bmatrix}
-        # \frac{\partial \dot{x}}{\partial v} & \frac{\partial \dot{x}}{\partial \omega} \\
-        # \frac{\partial \dot{y}}{\partial v} & \frac{\partial \dot{y}}{\partial \omega} \\
-        # \frac{\partial \dot{\theta}}{\partial v} & \frac{\partial \dot{\theta}}{\partial \omega}
-        # \end{bmatrix}.
-        # \]
-
-        # Compute the partial derivatives:
-
-        # \begin{align*}
-        # \frac{\partial \dot{x}}{\partial v} &= \cos(\theta_0), & \frac{\partial \dot{x}}{\partial \omega} &= 0, \\
-        # \frac{\partial \dot{y}}{\partial v} &= \sin(\theta_0), & \frac{\partial \dot{y}}{\partial \omega} &= 0, \\
-        # \frac{\partial \dot{\theta}}{\partial v} &= 0, & \frac{\partial \dot{\theta}}{\partial \omega} &= 1.
-        # \end{align*}
-
-        # Thus,
-
-        # \[
-        # B_c = \begin{bmatrix}
-        # \cos(\theta_0) & 0 \\
-        # \sin(\theta_0) & 0 \\
-        # 0 & 1
-        # \end{bmatrix}.
-        # \]
-
-
-
-        # then linearize A and B matrices
-        # \[
-        # A = I + \Delta t \cdot A_c,
-        # \]
-        # \[
-        # B = \Delta t \cdot B_c,
-        # \]
-
-        # where \( I \) is the identity matrix.
-
-        # Compute \( A \):
-
-        # \[
-        # A = \begin{bmatrix}
-        # 1 & 0 & -v_0 \Delta t \sin(\theta_0) \\
-        # 0 & 1 & v_0 \Delta t \cos(\theta_0) \\
-        # 0 & 0 & 1
-        # \end{bmatrix}.
-        # \]
-
-        # Compute \( B \):
-
-        # \[
-        # B = \begin{bmatrix}
-        # \Delta t \cos(\theta_0) & 0 \\
-        # \Delta t \sin(\theta_0) & 0 \\
-        # 0 & \Delta t
-        # \end{bmatrix}.
-        # \]
+    def updateSystemMatrices(self, sim, cur_x, cur_u):
+        """
+        Get the system matrices A and B according to the dimensions of the state and control input.
         
+        Parameters:
+        sim: Simulator object
+        cur_x: Current state around which to linearize
+        cur_u: Current control input around which to linearize
 
-        # self.A = A
-        # self.B = B
-        # self.C = np.eye(num_outputs) """
-    # 状态和控制输入
-    x0, y0, theta0 = cur_x  # 当前状态 x, y, theta
-    v0, omega0 = cur_u      # 当前控制输入 v 和 omega
+        Returns:
+        A: State transition matrix
+        B: Control input matrix
+        """
+        # 检查 cur_x 和 cur_u 是否提供
+        if cur_x is None or cur_u is None:
+            raise ValueError(
+                "state_x_for_linearization and cur_u_for_linearization are not specified.\n"
+                "Please provide the current state and control input for linearization.\n"
+                "Hint: Use the goal state (e.g., zeros) and zero control input at the beginning.\n"
+                "Also, ensure that you implement the linearization logic in the updateSystemMatrices function."
+            )
+            """ 
+            # get A and B matrices by linearinzing the cotinuous system dynamics
+            # The linearized continuous-time system is:
 
-    time_step = sim.GetTimeStep()  # 时间步长
+            # \[
+            # \dot{\mathbf{x}} = A_c (\mathbf{x} - \mathbf{x}_0) + B_c (\mathbf{u} - \mathbf{u}_0).
+            # \]
 
-    # 连续时间系统的 A_c 矩阵
-    Ac = np.array([
-        [0, 0, -v0 * np.sin(theta0)],
-        [0, 0,  v0 * np.cos(theta0)],
-        [0, 0, 0]
-    ])
+            # \textbf{Compute \( A_c = \left. \dfrac{\partial \mathbf{f}}{\partial \mathbf{x}} \right|_{(\mathbf{x}_0, \mathbf{u}_0)} \):}
 
-    # 连续时间系统的 B_c 矩阵
-    Bc = np.array([
-        [np.cos(theta0), 0],
-        [np.sin(theta0), 0],
-        [0, 1]
-    ])
+            # \[
+            # A_c = \begin{bmatrix}
+            # \frac{\partial \dot{x}}{\partial x} & \frac{\partial \dot{x}}{\partial y} & \frac{\partial \dot{x}}{\partial \theta} \\
+            # \frac{\partial \dot{y}}{\partial x} & \frac{\partial \dot{y}}{\partial y} & \frac{\partial \dot{y}}{\partial \theta} \\
+            # \frac{\partial \dot{\theta}}{\partial x} & \frac{\partial \dot{\theta}}{\partial y} & \frac{\partial \dot{\theta}}{\partial \theta}
+            # \end{bmatrix}.
+            # \]
 
-    # 离散时间系统矩阵的计算
-    I = np.eye(3)  # 单位矩阵 I
-    A = I + time_step * Ac
-    B = time_step * Bc
+            # Compute the partial derivatives:
 
-    # 更新状态矩阵和控制输入矩阵
-    self.A = A
-    self.B = B
-    self.C = np.eye(self.q) 
+            # \begin{align*}
+            # \frac{\partial \dot{x}}{\partial x} &= 0, & \frac{\partial \dot{x}}{\partial y} &= 0, & \frac{\partial \dot{x}}{\partial \theta} &= -v_0 \sin(\theta_0), \\
+            # \frac{\partial \dot{y}}{\partial x} &= 0, & \frac{\partial \dot{y}}{\partial y} &= 0, & \frac{\partial \dot{y}}{\partial \theta} &= v_0 \cos(\theta_0), \\
+            # \frac{\partial \dot{\theta}}{\partial x} &= 0, & \frac{\partial \dot{\theta}}{\partial y} &= 0, & \frac{\partial \dot{\theta}}{\partial \theta} &= 0.
+            # \end{align*}
 
-    return A, B
+            # Thus,
+
+            # \[
+            # A_c = \begin{bmatrix}
+            # 0 & 0 & -v_0 \sin(\theta_0) \\
+            # 0 & 0 & v_0 \cos(\theta_0) \\
+            # 0 & 0 & 0
+            # \end{bmatrix}.
+            # \]
+
+            # \textbf{Compute \( B_c = \left. \dfrac{\partial \mathbf{f}}{\partial \mathbf{u}} \right|_{(\mathbf{x}_0, \mathbf{u}_0)} \):}
+
+            # \[
+            # B_c = \begin{bmatrix}
+            # \frac{\partial \dot{x}}{\partial v} & \frac{\partial \dot{x}}{\partial \omega} \\
+            # \frac{\partial \dot{y}}{\partial v} & \frac{\partial \dot{y}}{\partial \omega} \\
+            # \frac{\partial \dot{\theta}}{\partial v} & \frac{\partial \dot{\theta}}{\partial \omega}
+            # \end{bmatrix}.
+            # \]
+
+            # Compute the partial derivatives:
+
+            # \begin{align*}
+            # \frac{\partial \dot{x}}{\partial v} &= \cos(\theta_0), & \frac{\partial \dot{x}}{\partial \omega} &= 0, \\
+            # \frac{\partial \dot{y}}{\partial v} &= \sin(\theta_0), & \frac{\partial \dot{y}}{\partial \omega} &= 0, \\
+            # \frac{\partial \dot{\theta}}{\partial v} &= 0, & \frac{\partial \dot{\theta}}{\partial \omega} &= 1.
+            # \end{align*}
+
+            # Thus,
+
+            # \[
+            # B_c = \begin{bmatrix}
+            # \cos(\theta_0) & 0 \\
+            # \sin(\theta_0) & 0 \\
+            # 0 & 1
+            # \end{bmatrix}.
+            # \]
+
+
+
+            # then linearize A and B matrices
+            # \[
+            # A = I + \Delta t \cdot A_c,
+            # \]
+            # \[
+            # B = \Delta t \cdot B_c,
+            # \]
+
+            # where \( I \) is the identity matrix.
+
+            # Compute \( A \):
+
+            # \[
+            # A = \begin{bmatrix}
+            # 1 & 0 & -v_0 \Delta t \sin(\theta_0) \\
+            # 0 & 1 & v_0 \Delta t \cos(\theta_0) \\
+            # 0 & 0 & 1
+            # \end{bmatrix}.
+            # \]
+
+            # Compute \( B \):
+
+            # \[
+            # B = \begin{bmatrix}
+            # \Delta t \cos(\theta_0) & 0 \\
+            # \Delta t \sin(\theta_0) & 0 \\
+            # 0 & \Delta t
+            # \end{bmatrix}.
+            # \]
+            
+
+            # self.A = A
+            # self.B = B
+            # self.C = np.eye(num_outputs) """
+        # 状态和控制输入
+        x0, y0, theta0 = cur_x  # 当前状态 x, y, theta
+        v0, omega0 = cur_u      # 当前控制输入 v 和 omega
+
+        time_step = sim.GetTimeStep()  # 时间步长
+
+        # 连续时间系统的 A_c 矩阵
+        Ac = np.array([
+            [0, 0, -v0 * np.sin(theta0)],
+            [0, 0,  v0 * np.cos(theta0)],
+            [0, 0, 0]
+        ])
+
+        # 连续时间系统的 B_c 矩阵
+        Bc = np.array([
+            [np.cos(theta0), 0],
+            [np.sin(theta0), 0],
+            [0, 1]
+        ])
+
+        # 离散时间系统矩阵的计算
+        I = np.eye(3)  # 单位矩阵 I
+        A = I + time_step * Ac
+        B = time_step * Bc
+
+        # 更新状态矩阵和控制输入矩阵
+        self.A = A
+        self.B = B
+        self.C = np.eye(self.q) 
+
+        return A, B
+            
+
+
+    # TODO you can change this function to allow for more passing a vector of gains
+    def setCostMatrices(self,Qcoeff,Rcoeff):    
+        """
+        Get the cost matrices Q and R for the MPC controller.
         
-
-
-# TODO you can change this function to allow for more passing a vector of gains
-def setCostMatrices(self,Qcoeff,Rcoeff):    
-    """
-    Get the cost matrices Q and R for the MPC controller.
+        Returns:
+        Q: State cost matrix
+        R: Control input cost matrix
+        """
+        num_states = self.n
+        num_controls = self.m
+        
+        # Q = 1 * np.eye(num_states)  # State cost matrix
+        Q = Qcoeff * np.eye(num_states)
     
-    Returns:
-    Q: State cost matrix
-    R: Control input cost matrix
-    """
-    num_states = self.n
-    num_controls = self.m
-    
-    # Q = 1 * np.eye(num_states)  # State cost matrix
-    Q = Qcoeff * np.eye(num_states)
-   
-    
-    R = Rcoeff * np.eye(num_controls)  # Control input cost matrix
-    
-    self.Q = Q
-    self.R = R
+        
+        R = Rcoeff * np.eye(num_controls)  # Control input cost matrix
+        
+        self.Q = Q
+        self.R = R

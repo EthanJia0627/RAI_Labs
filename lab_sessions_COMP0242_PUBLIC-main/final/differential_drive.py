@@ -15,8 +15,10 @@ landmarks = np.array([
             [10, 15]
         ])
 
+update_AB = True
 
-def landmark_range_observations(self, base_position):
+
+def landmark_range_observations(base_position):
     y = []
     C = []
     W = W_range
@@ -92,13 +94,15 @@ def main():
     N_mpc = 10
 
     # Initialize the regulator model
-    regulator = RegulatorModel(N_mpc, num_states, num_joints, num_states)
+    regulator = RegulatorModel(N_mpc, num_states, num_controls, num_states)
     # update A,B,C matrices
     # TODO provide state_x_for_linearization,cur_u_for_linearization to linearize the system
     # you can linearize around the final state and control of the robot (everything zero)
     # or you can linearize around the current state and control of the robot
     # in the second case case you need to update the matrices A and B at each time step
     # and recall everytime the method updateSystemMatrices
+    state_x_for_linearization = [0,0,0]
+    cur_u_for_linearization = [0,0]
     regulator.updateSystemMatrices(sim,state_x_for_linearization,cur_u_for_linearization)
     # Define the cost matrices
     Qcoeff = 1000
@@ -156,9 +160,11 @@ def main():
    
         # Compute the matrices needed for MPC optimization
         # TODO here you want to update the matrices A and B at each time step if you want to linearize around the current points
+
+
         S_bar, T_bar, Q_bar, R_bar = regulator.propagation_model_regulator_fixed_std()
         H,F = regulator.compute_H_and_F(S_bar, T_bar, Q_bar, R_bar)
-        x0_mpc = np.vstack((base_pos[:2], base_bearing_))
+        x0_mpc = np.hstack((base_pos[:2], base_bearing_))
         x0_mpc = x0_mpc.flatten()
         # Compute the optimal control sequence
         H_inv = np.linalg.inv(H)
@@ -172,7 +178,8 @@ def main():
         cmd.SetControlCmd(angular_wheels_velocity_cmd, interface_all_wheels)
 
 
-       
+        if update_AB:
+            regulator.updateSystemMatrices(sim,x0_mpc,u_mpc)
 
         # Exit logic with 'q' key (unchanged)
         keys = sim.GetPyBulletClient().getKeyboardEvents()
@@ -183,7 +190,7 @@ def main():
 
 
         # Store data for plotting if necessary
-        base_pos_all.append(base_pos)
+        base_pos_all.append(base_pos[0:2])
         base_bearing_all.append(base_bearing_)
 
         # Update current time
@@ -192,7 +199,9 @@ def main():
 
     # Plotting 
     #add visualization of final x, y, trajectory and theta
-    
+    plt.plot(base_pos_all)
+    plt.plot(base_bearing_all)
+    plt.show()
     
     
     
