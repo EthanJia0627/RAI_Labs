@@ -6,7 +6,7 @@ from simulation_and_control import pb, MotorCommands, PinWrapper, feedback_lin_c
 from simulation_and_control import differential_drive_regulation_controller,regulation_polar_coordinates,regulation_polar_coordinate_quat,wrap_angle,velocity_to_wheel_angular_velocity
 import pinocchio as pin
 from regulator_model import RegulatorModel
-
+from controllability_analisys import is_controllable
 # global variables
 W_range = 0.5 ** 2  # Measurement noise variance (range measurements)
 landmarks = np.array([
@@ -16,6 +16,7 @@ landmarks = np.array([
         ])
 
 update_AB = True
+Terminal = True
 
 
 def landmark_range_observations(base_position):
@@ -70,7 +71,7 @@ def main():
     sim,dyn_model,num_joints=init_simulator(conf_file_name)
 
     # adjusting floor friction
-    floor_friction = 1
+    floor_friction = 100
     sim.SetFloorFriction(floor_friction)
     # getting time step
     time_step = sim.GetTimeStep()
@@ -91,7 +92,7 @@ def main():
     C = np.eye(num_states)
     
     # Horizon length
-    N_mpc = 10
+    N_mpc = 40
 
     # Initialize the regulator model
     regulator = RegulatorModel(N_mpc, num_states, num_controls, num_states)
@@ -101,16 +102,20 @@ def main():
     # or you can linearize around the current state and control of the robot
     # in the second case case you need to update the matrices A and B at each time step
     # and recall everytime the method updateSystemMatrices
-    x0_mpc = [0,0,0]
-    u_mpc = [0,0]
-    regulator.updateSystemMatrices(sim,x0_mpc,u_mpc)
+    init_pos  = np.array([2.0, 3.0])
+    init_quat = np.array([0,0,0.3827,0.9239])
+    init_base_bearing_ = quaternion2bearing(init_quat[3], init_quat[0], init_quat[1], init_quat[2])
+    cur_state_x_for_linearization = [init_pos[0], init_pos[1], init_base_bearing_]
+    cur_u_for_linearization = 0.01*np.ones(num_controls)
+    regulator.updateSystemMatrices(sim,cur_state_x_for_linearization,cur_u_for_linearization)
+    is_controllable(regulator.A,regulator.B)
     # Define the cost matrices
-    Qcoeff = 1000
-    Rcoeff = 1.5
+    Qcoeff = np.array([180, 180, 80.0])
+    Rcoeff = 4
     regulator.setCostMatrices(Qcoeff,Rcoeff)
    
 
-
+    u_mpc = np.zeros(num_controls)
 
     ##### robot parameters ########
     wheel_radius = 0.11
@@ -160,27 +165,30 @@ def main():
    
         # Compute the matrices needed for MPC optimization
         # TODO here you want to update the matrices A and B at each time step if you want to linearize around the current points
+        # add this 3 lines if you want to update the A and B matrices at each time step 
         if update_AB:
-            regulator.updateSystemMatrices(sim,x0_mpc,u_mpc)
-
-        S_bar, T_bar, Q_bar, R_bar = regulator.propagation_model_regulator_fixed_std()
-        H,F = regulator.compute_H_and_F(S_bar, T_bar, Q_bar, R_bar)
+            cur_state_x_for_linearization = [base_pos[0], base_pos[1], base_bearing_]
+            cur_u_for_linearization = u_mpc
+            regulator.updateSystemMatrices(sim,cur_state_x_for_linearization,cur_u_for_linearization)
         x0_mpc = np.hstack((base_pos[:2], base_bearing_))
         x0_mpc = x0_mpc.flatten()
-        # Compute the optimal control sequence
-        H_inv = np.linalg.inv(H)
-        u_mpc = -H_inv @ F @ x0_mpc
-        # Return the optimal control sequence
-        u_mpc = u_mpc[0:num_controls] 
+        
+        if Terminal:
+            regulator.update_P()
+            u_mpc = regulator.get_u_DARE(x0_mpc)
+        else:
+            if (abs(x0_mpc)<1).all(): 
+                Qcoeff = np.array([610, 610, 280.0])
+                # if (abs(x0_mpc)<0.5).any():    
+                #     Qcoeff[np.where(abs(x0_mpc)>0.6)] = 800
+                regulator.setCostMatrices(Qcoeff,Rcoeff)
+            u_mpc = regulator.get_u(x0_mpc)
         # Prepare control command to send to the low level controller
         left_wheel_velocity,right_wheel_velocity=velocity_to_wheel_angular_velocity(u_mpc[0],u_mpc[1], wheel_base_width, wheel_radius)
         angular_wheels_velocity_cmd = np.array([right_wheel_velocity, left_wheel_velocity, left_wheel_velocity, right_wheel_velocity])
         interface_all_wheels = ["velocity", "velocity", "velocity", "velocity"]
         cmd.SetControlCmd(angular_wheels_velocity_cmd, interface_all_wheels)
 
-
-        if update_AB:
-            regulator.updateSystemMatrices(sim,x0_mpc,u_mpc)
 
         # Exit logic with 'q' key (unchanged)
         keys = sim.GetPyBulletClient().getKeyboardEvents()
@@ -189,22 +197,46 @@ def main():
             break
         
 
-
         # Store data for plotting if necessary
-        base_pos_all.append(base_pos[0:2])
+        base_pos_all.append(base_pos)
         base_bearing_all.append(base_bearing_)
 
         # Update current time
         current_time += time_step
 
 
-    # Plotting 
-    #add visualization of final x, y, trajectory and theta
-    plt.plot(base_pos_all)
-    plt.plot(base_bearing_all)
+# Plotting 
+#add visualization of final x, y, trajectory and theta
+    # 提取 x 和 y 坐标
+    x_vals = np.array(base_pos_all)[:,0]
+    y_vals = np.array(base_pos_all)[:,1]
+
+    # 创建绘图窗口
+    plt.figure(figsize=(10, 6))
+
+    # 绘制轨迹
+    plt.plot(x_vals, y_vals, label='Trajectory', color='g', marker='.', linestyle='-', markersize=4)
+
+    # 添加方向箭头
+    arrow_scale = 0.3  # 调整箭头的大小
+    for i in [len(base_pos_all)-1]:
+        x, y , _= base_pos_all[i]
+        theta = base_bearing_all[i]
+        dx = arrow_scale * np.cos(theta)  # 根据 θ 计算 x 方向的箭头长度
+        dy = arrow_scale * np.sin(theta)  # 根据 θ 计算 y 方向的箭头长度
+        plt.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='b', ec='b')
+
+    # 设置标签和图例
+    plt.xlabel('X Position')
+    plt.ylabel('Y Position')
+    plt.title('Robot Trajectory')
+    plt.legend()
+    plt.grid()
+
+    # 显示图形
     plt.show()
-    
-    
+
+
     
 
 if __name__ == '__main__':
