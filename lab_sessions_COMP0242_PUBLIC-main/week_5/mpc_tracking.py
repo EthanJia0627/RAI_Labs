@@ -9,7 +9,7 @@ from utils import *
 def initialize_simulation(conf_file_name):
     """Initialize simulation and dynamic model."""
     cur_dir = os.path.dirname(os.path.abspath(__file__))
-    sim = pb.SimInterface(conf_file_name, conf_file_path_ext=cur_dir)
+    sim = pb.SimInterface(conf_file_name, conf_file_path_ext=cur_dir,use_gui=True)
     
     ext_names = np.expand_dims(np.array(sim.getNameActiveJoints()), axis=0)
     source_names = ["pybullet"]
@@ -90,8 +90,8 @@ def getCostMatrices(num_joints):
     num_controls = num_joints
     
     # Q = 1 * np.eye(num_states)  # State cost matrix
-    p_w = 10000
-    v_w = 10
+    p_w = 1000000
+    v_w = 0
     Q_diag = np.array([p_w, p_w, p_w,p_w, p_w, p_w,p_w, v_w, v_w, v_w,v_w, v_w, v_w,v_w])
     Q = np.diag(Q_diag)
     
@@ -145,7 +145,7 @@ def main():
     amplitude = np.array(amplitudes)
     frequency = np.array(frequencies)
     ref = SinusoidalReference(amplitude, frequency, sim.GetInitMotorAngles())  # Initialize the reference
-    ref = LinearReference(frequency, sim.GetInitMotorAngles())
+    # ref = LinearReference(frequency, sim.GetInitMotorAngles())
 
     # Main control loop
     episode_duration = 5 # duration in seconds
@@ -184,6 +184,7 @@ def main():
        
         # Control command
         cmd.tau_cmd = dyn_cancel(dyn_model, q_mes, qd_mes, u_mpc)
+        cmd.SetControlCmd(cmd.tau_cmd,["torque"]*7)
         sim.Step(cmd, "torque")  # Simulation step with torque command
 
         # print(cmd.tau_cmd)
