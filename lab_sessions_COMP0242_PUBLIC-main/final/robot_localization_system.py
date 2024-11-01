@@ -18,12 +18,12 @@ class FilterConfiguration(object):
 
 
 class Map(object):
-    def __init__(self):
-        self.landmarks = np.array([
+    def __init__(self,landmarks=np.array([
             [5, 10],
             [15, 5],
             [10, 15]
-        ])
+        ])):
+        self.landmarks = np.array(landmarks)
 
 
 class RobotEstimator_R(object):

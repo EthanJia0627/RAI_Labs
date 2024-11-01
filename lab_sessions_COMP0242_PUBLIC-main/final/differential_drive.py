@@ -7,32 +7,68 @@ from simulation_and_control import differential_drive_regulation_controller,regu
 import pinocchio as pin
 from regulator_model import RegulatorModel
 from controllability_analisys import is_controllable
+from robot_localization_system import *
+
+
+update_AB = True
+Terminal = False
+EKF = True
+sensor_type = "R"
+
+
 # global variables
-W_range = 0.5 ** 2  # Measurement noise variance (range measurements)
+
 landmarks = np.array([
             [5, 10],
             [15, 5],
             [10, 15]
         ])
+map = Map(landmarks)
+filter_config = FilterConfiguration()
 
-update_AB = True
-Terminal = True
+class FilterConfiguration(object):
+    def __init__(self):
+        # Process and measurement noise covariance matrices
+        self.V = np.diag([0.1, 0.1, 0.05]) ** 2  # Process noise covariance
+        # Measurement noise variance (range measurements)
+        self.W_range = 0
+        self.W_bearing = 0
 
+        # Initial conditions for the filter
+        self.x0 = np.array([2.0, 3.0, np.pi / 4])
+        self.Sigma0 = np.diag([1.0, 1.0, 0.5]) ** 2
 
-def landmark_range_observations(base_position):
+def landmark_range_observations(x):
     y = []
     C = []
-    W = W_range
-    for lm in landmarks:
+    for lm in map.landmarks:
         # True range measurement (with noise)
-        dx = lm[0] - base_position[0]
-        dy = lm[1] - base_position[1]
-        range_meas = np.sqrt(dx**2 + dy**2)
+        dx = lm[0] - x[0]
+        dy = lm[1] - x[1]
+        range_meas = np.sqrt(dx**2 + dy**2) 
        
         y.append(range_meas)
 
     y = np.array(y)
     return y
+
+def landmark_range_bearing_observations(pos,theta):
+        y_range = []
+        y_bearing = []
+        C = []
+        for lm in map.landmarks:
+            # True range measurement (with noise)
+            dx = lm[0] - pos[0]
+            dy = lm[1] - pos[1]
+            range_meas = np.sqrt(dx**2 + dy**2)
+            bearing_meas = np.arctan2(dy,dx) - theta 
+            # range_meas = range_true + np.random.normal(0, np.sqrt(W_range))
+            # bearing_meas = bearing_true + np.random.normal(0, np.sqrt(W_bearing))
+            y_range.append(range_meas)
+            y_bearing.append(bearing_meas)
+        y_range = np.array(y_range)
+        y_bearing = np.array(y_bearing)
+        return y_range,y_bearing
 
 
 def quaternion2bearing(q_w, q_x, q_y, q_z):
@@ -79,8 +115,8 @@ def main():
 
    
     # Initialize data storage
-    base_pos_all, base_bearing_all = [], []#
-
+    base_pos_all, base_bearing_all = [], []
+    base_pos_estimate_all, base_bearing_estimate_all = [],[]
     # initializing MPC
      # Define the matrices
     num_states = 3
@@ -110,7 +146,7 @@ def main():
     regulator.updateSystemMatrices(sim,cur_state_x_for_linearization,cur_u_for_linearization)
     is_controllable(regulator.A,regulator.B)
     # Define the cost matrices
-    Qcoeff = np.array([180, 180, 80.0])
+    Qcoeff = np.array([280, 280, 180.0])
     Rcoeff = 4
     regulator.setCostMatrices(Qcoeff,Rcoeff)
    
@@ -128,7 +164,14 @@ def main():
     init_angular_wheels_velocity_cmd = np.array([0.0, 0.0, 0.0, 0.0])
     init_interface_all_wheels = ["velocity", "velocity", "velocity", "velocity"]
     cmd.SetControlCmd(init_angular_wheels_velocity_cmd, init_interface_all_wheels)
-    
+    if EKF:
+        # Create the estimator and start it.
+        if sensor_type == "R":
+            estimator = RobotEstimator_R(filter_config, map)
+        else:
+            estimator = RobotEstimator_RB(filter_config, map)
+        estimator.start()
+        estimator.set_control_input(cur_u_for_linearization)
     while True:
 
 
@@ -138,7 +181,8 @@ def main():
         time_step = sim.GetTimeStep()
 
         # Kalman filter prediction
-       
+        if EKF:
+            estimator.predict_to(current_time)
     
         # Get the measurements from the simulator ###########################################
          # measurements of the robot without noise (just for comparison purpose) #############
@@ -151,13 +195,19 @@ def main():
         base_pos = sim.GetBasePosition()
         base_ori = sim.GetBaseOrientation()
         base_bearing_ = quaternion2bearing(base_ori[3], base_ori[0], base_ori[1], base_ori[2])
-        y = landmark_range_observations(base_pos)
-    
+        if sensor_type == "R":
+            y = landmark_range_observations(base_pos)
+        else:
+            y,y_bearing = landmark_range_bearing_observations(base_pos,base_bearing_)
         # Update the filter with the latest observations
-        
-    
+        if EKF:
+            if sensor_type == "R":
+                estimator.update_from_landmark_range_observations(y)
+            else:
+                estimator.update_from_landmark_range_bearing_observations(y,y_bearing)
+                
         # Get the current state estimate
-        
+            x_est,Sigma_est = estimator.estimate()
 
         # Figure out what the controller should do next
         # MPC section/ low level controller section ##################################################################
@@ -173,6 +223,11 @@ def main():
         x0_mpc = np.hstack((base_pos[:2], base_bearing_))
         x0_mpc = x0_mpc.flatten()
         
+        if EKF:
+            x0_mpc = x_est
+            base_pos_estimate_all.append(x_est[:2])
+            base_bearing_estimate_all.append(x_est[2])
+
         if Terminal:
             regulator.update_P()
             u_mpc = regulator.get_u_DARE(x0_mpc)
@@ -183,6 +238,7 @@ def main():
                 #     Qcoeff[np.where(abs(x0_mpc)>0.6)] = 800
                 regulator.setCostMatrices(Qcoeff,Rcoeff)
             u_mpc = regulator.get_u(x0_mpc)
+        estimator.set_control_input(u_mpc)
         # Prepare control command to send to the low level controller
         left_wheel_velocity,right_wheel_velocity=velocity_to_wheel_angular_velocity(u_mpc[0],u_mpc[1], wheel_base_width, wheel_radius)
         angular_wheels_velocity_cmd = np.array([right_wheel_velocity, left_wheel_velocity, left_wheel_velocity, right_wheel_velocity])
@@ -210,12 +266,12 @@ def main():
     # 提取 x 和 y 坐标
     x_vals = np.array(base_pos_all)[:,0]
     y_vals = np.array(base_pos_all)[:,1]
-
-    # 创建绘图窗口
     plt.figure(figsize=(10, 6))
-
-    # 绘制轨迹
-    plt.plot(x_vals, y_vals, label='Trajectory', color='g', marker='.', linestyle='-', markersize=4)
+    plt.plot(x_vals, y_vals, label='Trajectory', color='g', marker='o', linestyle='-', markersize=4)
+    if EKF:
+        x_vals = np.array(base_pos_estimate_all)[:,0]
+        y_vals = np.array(base_pos_estimate_all)[:,1]
+        plt.plot(x_vals, y_vals, label='Estimated Trajectory', color='orange', marker='.', linestyle='-', markersize=4)
 
     # 添加方向箭头
     arrow_scale = 0.3  # 调整箭头的大小
