@@ -9,11 +9,19 @@ from regulator_model import RegulatorModel
 from controllability_analisys import is_controllable
 from robot_localization_system import *
 
+save_path = "./242/final"
+
+
 
 update_AB = True
+update_QR = False
 Terminal = False
-EKF = True
+EKF = False
 sensor_type = "R"
+save_fig = False
+Qcoeff_init = np.array([750, 750, 280.0])
+Rcoeff_init = 0.5
+N_mpc_init = 5
 
 
 # global variables
@@ -134,7 +142,7 @@ def main():
     C = np.eye(num_states)
     
     # Horizon length
-    N_mpc = 10
+    N_mpc = N_mpc_init
 
     # Initialize the regulator model
     regulator = RegulatorModel(N_mpc, num_states, num_controls, num_states)
@@ -152,8 +160,8 @@ def main():
     regulator.updateSystemMatrices(sim,cur_state_x_for_linearization,cur_u_for_linearization)
     is_controllable(regulator.A,regulator.B)
     # Define the cost matrices
-    Qcoeff = np.array([280, 280, 180.0])
-    Rcoeff = 1
+    Qcoeff = Qcoeff_init
+    Rcoeff = Rcoeff_init
     regulator.setCostMatrices(Qcoeff,Rcoeff)
    
 
@@ -239,11 +247,13 @@ def main():
             regulator.update_P()
             u_mpc = regulator.get_u_DARE(x0_mpc)
         else:
-            if (abs(x0_mpc)<1).all(): 
-                Qcoeff = np.array([610, 610, 280.0])
-                # if (abs(x0_mpc)<0.5).any():    
-                #     Qcoeff[np.where(abs(x0_mpc)>0.6)] = 800
-                regulator.setCostMatrices(Qcoeff,Rcoeff)
+            if update_QR:
+                if (abs(x0_mpc)<1).all(): 
+                    Qcoeff = np.array([610, 610, 280.0])
+                    Rcoeff = 0.6
+                    # if (abs(x0_mpc)<0.5).any():    
+                    #     Qcoeff[np.where(abs(x0_mpc)>0.6)] = 800
+                    regulator.setCostMatrices(Qcoeff,Rcoeff)
             u_mpc = regulator.get_u(x0_mpc)
         if EKF:
             estimator.set_control_input(u_mpc)
@@ -275,7 +285,9 @@ def main():
     x_vals = np.array(base_pos_all)[:,0]
     y_vals = np.array(base_pos_all)[:,1]
     plt.figure(figsize=(10, 6))
-    plt.plot(x_vals, y_vals, label='Trajectory', color='g', marker='.', linestyle='-', markersize=4)
+
+    plt.plot(x_vals, y_vals, label='Trajectory', color='b', marker='.', linestyle='-', markersize=4)
+
     if EKF:
         x_vals = np.array(base_pos_estimate_all)[:,0]
         y_vals = np.array(base_pos_estimate_all)[:,1]
@@ -284,14 +296,18 @@ def main():
         # y_vals = np.array(base_pos_pred_all)[:,1]
         # plt.plot(x_vals, y_vals, label='Predicted Trajectory', color='gray', marker='.', linestyle='-', markersize=4)
 
-    # 添加方向箭头
-    arrow_scale = 0.3  # 调整箭头的大小
-    for i in [len(base_pos_all)-1]:
-        x, y , _= base_pos_all[i]
-        theta = base_bearing_all[i]
-        dx = arrow_scale * np.cos(theta)  # 根据 θ 计算 x 方向的箭头长度
-        dy = arrow_scale * np.sin(theta)  # 根据 θ 计算 y 方向的箭头长度
-        plt.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='b', ec='b')
+    # # 添加方向箭头
+    # arrow_scale = 0.3  # 调整箭头的大小
+    # for i in [len(base_pos_all)-1]:
+    #     x, y , _= base_pos_all[i]
+    #     theta = base_bearing_all[i]
+    #     dx = arrow_scale * np.cos(theta)  # 根据 θ 计算 x 方向的箭头长度
+    #     dy = arrow_scale * np.sin(theta)  # 根据 θ 计算 y 方向的箭头长度
+    #     plt.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='b', ec='b')
+    ## plot destination
+    plt.scatter(0,0, label='Destination', color='r', marker='x', s=150)
+    ## plot final position
+    plt.scatter(x_vals[-1], y_vals[-1], label='Final Position', color='g', marker='x', s=150)
 
     # 设置标签和图例
     plt.xlabel('X Position')
@@ -299,7 +315,24 @@ def main():
     plt.title('Robot Trajectory')
     plt.legend()
     plt.grid()
-
+    ## save figure with parameters in the name
+    if save_fig:
+        save_path = "./242/final"
+        if not update_AB:
+            save_path += "/AB_constant"
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            ## save figure with parameters in the name
+            plt.savefig(save_path + f"/trajectory_{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}.png")
+        else:
+            save_path += "/AB_update"
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            if update_QR:
+                ## save figure with initial and updated parameters in the name
+                plt.savefig(save_path + f"/trajectory_{Qcoeff_init}_{Rcoeff_init}_{Qcoeff}_{Rcoeff}_{N_mpc_init}_update_QR.png")
+            else:
+                plt.savefig(save_path + f"/trajectory_{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}_update_AB.png")
     # 显示图形
     plt.show()
 
