@@ -15,17 +15,17 @@ save_path = "./242/final"
 
 # Parameters for the simulation
 update_AB = True
-update_QR = False
-Terminal = True
-EKF = False
+update_QR = True
+Terminal = False
+EKF = True
 sensor_type = "R"
 save_fig = False
 # Parameters for the MPC controller
-Qcoeff_init = np.array([90, 90, 75])
-Rcoeff_init = 1.5
-Qcoeff_update = np.array([1000, 1000, 380.0])
-Rcoeff_update = 0.4
-N_mpc_init = 5
+Qcoeff_init = np.array([680, 680, 180])
+Rcoeff_init = 1
+Qcoeff_update = np.array([1200, 1200, 380.0])
+Rcoeff_update = 0.5
+N_mpc_init = 10
 
 
 # global variables
@@ -34,14 +34,19 @@ landmarks = np.array([
             [-1, -1],
             [-1, 3],
             [3, -1],
-            [3,3]
+            [3,3],
+            [-1,1],
+            [1,-1],
+            [1,3],
+            [3,1],
+            [1,1]
         ])
 
 
 class FilterConfiguration(object):
     def __init__(self):
         # Process and measurement noise covariance matrices
-        self.V = np.diag([0.1, 0.1, 0.05]) ** 2  # Process noise covariance
+        self.V = np.diag([0.3, 0.3, 0.1]) ** 2  # Process noise covariance
         # Measurement noise variance (range measurements)
         self.W_range = 0.1 ** 2
         self.W_bearing = (np.pi * 0.05 / 180.0) ** 2
@@ -135,6 +140,7 @@ def main():
     base_pos_all, base_bearing_all = [], []
     base_pos_estimate_all, base_bearing_estimate_all = [],[]
     base_pos_pred_all, base_bearing_pred_all = [],[]
+    base_pos_nonoise_all, base_bearing_nonoise_all = [],[]  # for comparison purpose
     # initializing MPC
      # Define the matrices
     num_states = 3
@@ -215,9 +221,9 @@ def main():
         base_ori = sim.GetBaseOrientation()
         base_bearing_ = quaternion2bearing(base_ori[3], base_ori[0], base_ori[1], base_ori[2])
         if sensor_type == "R":
-            y = landmark_range_observations(base_pos)
+            y = landmark_range_observations(base_pos_no_noise)
         else:
-            y,y_bearing = landmark_range_bearing_observations(base_pos,base_bearing_)
+            y,y_bearing = landmark_range_bearing_observations(base_pos_no_noise,base_bearing_no_noise_)
         # Update the filter with the latest observations
         if EKF:
             if sensor_type == "R":
@@ -278,6 +284,8 @@ def main():
         # Store data for plotting if necessary
         base_pos_all.append(base_pos)
         base_bearing_all.append(base_bearing_)
+        base_pos_nonoise_all.append(base_pos_no_noise)
+        base_bearing_nonoise_all.append(base_bearing_no_noise_)
 
         # Update current time
         current_time += time_step
@@ -293,9 +301,24 @@ def main():
     plt.plot(x_vals, y_vals, label='Trajectory', color='b', marker='.', linestyle='-', markersize=4)
 
     if EKF:
+        plt.clf()
         x_vals = np.array(base_pos_estimate_all)[:,0]
         y_vals = np.array(base_pos_estimate_all)[:,1]
-        plt.plot(x_vals, y_vals, label='Estimated Trajectory', color='orange', marker='.', linestyle='-', markersize=4)
+        plt.plot(x_vals, y_vals, label='Estimated Trajectory', color='g', marker='.', linestyle='-', markersize=4 , zorder=4)
+        # plot nonoise position
+        x_vals = np.array(base_pos_nonoise_all)[:,0]
+        y_vals = np.array(base_pos_nonoise_all)[:,1]
+        plt.plot(x_vals, y_vals, label='No Noise Trajectory', color='b', marker='.', linestyle='-', markersize=4)
+        # plot landmarks with triangle
+        # Plot landmarks with the label only once
+        for idx, lm in enumerate(landmarks):
+            if idx == 0:
+                plt.scatter(lm[0], lm[1], label='Landmarks', color='r', marker='^', s=50, zorder=5)
+            else:
+                plt.scatter(lm[0], lm[1], color='r', marker='^', s=50, zorder=5)
+            
+
+        ## plot predicted position
         # x_vals = np.array(base_pos_pred_all)[:,0]
         # y_vals = np.array(base_pos_pred_all)[:,1]
         # plt.plot(x_vals, y_vals, label='Predicted Trajectory', color='gray', marker='.', linestyle='-', markersize=4)
@@ -309,9 +332,9 @@ def main():
     #     dy = arrow_scale * np.sin(theta)  # 根据 θ 计算 y 方向的箭头长度
     #     plt.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='b', ec='b')
     ## plot destination
-    plt.scatter(0,0, label='Destination', color='r', marker='x', s=150)
+    plt.scatter(0,0, label='Destination', color='r', marker='x', s=150, zorder=5 )
     ## plot final position
-    plt.scatter(x_vals[-1], y_vals[-1], label='Final Position', color='g', marker='x', s=150)
+    plt.scatter(x_vals[-1], y_vals[-1], label='Final Position', color='orange', marker='x', s=150, zorder=5)
 
     # 设置标签和图例
     plt.xlabel('X Position')

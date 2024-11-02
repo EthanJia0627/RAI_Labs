@@ -90,14 +90,14 @@ def getCostMatrices(num_joints):
     num_controls = num_joints
     
     # Q = 1 * np.eye(num_states)  # State cost matrix
-    p_w = 1000000
-    v_w = 0
+    p_w = 10000
+    v_w = 10
     Q_diag = np.array([p_w, p_w, p_w,p_w, p_w, p_w,p_w, v_w, v_w, v_w,v_w, v_w, v_w,v_w])
     Q = np.diag(Q_diag)
     
     print(Q)
 
-    R = 0.01 * np.eye(num_controls)  # Control input cost matrix
+    R = 1 * np.eye(num_controls)  # Control input cost matrix
     
     return Q, R
 
@@ -137,9 +137,10 @@ def main():
     
     # Sinusoidal reference
     # Specify different amplitude values for each joint
-    amplitudes = [np.pi/4, np.pi/6, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4]  # Example amplitudes for joints
+    frequencies = [np.pi/4, np.pi/6, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4]  # Example amplitudes for joints
     # Specify different frequency values for each joint
-    frequencies = [0.1, 0.08, 0.12, 0.14, 0.09, 0.2, 0.15]  # Example frequencies for joints
+    amplitudes = [0.1, 0.08, 0.12, 0.14, 0.09, 0.2, 0.15]  # Example frequencies for joints
+    amplitudes = [0.4,0.5,0.4,0.4,0.4,0.4,0.4]  # Example frequencies for joints
 
     # Convert lists to NumPy arrays for easier manipulation in computations
     amplitude = np.array(amplitudes)
