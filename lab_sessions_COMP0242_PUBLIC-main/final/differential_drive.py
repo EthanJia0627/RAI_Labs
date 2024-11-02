@@ -9,18 +9,22 @@ from regulator_model import RegulatorModel
 from controllability_analisys import is_controllable
 from robot_localization_system import *
 
+
 save_path = "./242/final"
 
 
-
+# Parameters for the simulation
 update_AB = True
 update_QR = False
-Terminal = False
+Terminal = True
 EKF = False
 sensor_type = "R"
 save_fig = False
-Qcoeff_init = np.array([750, 750, 280.0])
-Rcoeff_init = 0.5
+# Parameters for the MPC controller
+Qcoeff_init = np.array([90, 90, 75])
+Rcoeff_init = 1.5
+Qcoeff_update = np.array([1000, 1000, 380.0])
+Rcoeff_update = 0.4
 N_mpc_init = 5
 
 
@@ -249,8 +253,8 @@ def main():
         else:
             if update_QR:
                 if (abs(x0_mpc)<1).all(): 
-                    Qcoeff = np.array([610, 610, 280.0])
-                    Rcoeff = 0.6
+                    Qcoeff = Qcoeff_update
+                    Rcoeff = Rcoeff_update
                     # if (abs(x0_mpc)<0.5).any():    
                     #     Qcoeff[np.where(abs(x0_mpc)>0.6)] = 800
                     regulator.setCostMatrices(Qcoeff,Rcoeff)
@@ -328,11 +332,14 @@ def main():
             save_path += "/AB_update"
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
-            if update_QR:
+            if Terminal:
+                plt.savefig(save_path + f"/terminal_{Qcoeff_init}_{Rcoeff_init}.png")
+            elif update_QR:
                 ## save figure with initial and updated parameters in the name
-                plt.savefig(save_path + f"/trajectory_{Qcoeff_init}_{Rcoeff_init}_{Qcoeff}_{Rcoeff}_{N_mpc_init}_update_QR.png")
+                plt.savefig(save_path + f"/update_QR_{Qcoeff_init}_{Rcoeff_init}_{Qcoeff}_{Rcoeff}_{N_mpc_init}.png")
             else:
-                plt.savefig(save_path + f"/trajectory_{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}_update_AB.png")
+                plt.savefig(save_path + f"/{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}.png")
+
     # 显示图形
     plt.show()
 
