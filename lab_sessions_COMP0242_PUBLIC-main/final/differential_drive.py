@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 import time
 import os
@@ -9,7 +10,7 @@ from regulator_model import RegulatorModel
 from controllability_analisys import is_controllable
 from robot_localization_system import *
 import numpy as np
-
+from utils import plot_error
 
 save_path = "./242/final"
 
@@ -28,13 +29,16 @@ update_AB = True
 update_QR = True
 Terminal = False
 Terminal_Methode = "FiniteHorizon"
-EKF = True
+EKF = False
 sensor_type = "RB"
 save_fig = False
+Plot_Error = True
+
+
 # Parameters for the MPC controller
-Qcoeff_init = np.array([380, 380, 2500])
+Qcoeff_init = np.array([380,380,2500])
 Rcoeff_init = 3.5
-Qcoeff_update = np.array([80, 80, 1200])
+Qcoeff_update = np.array([80,80,1200])
 Rcoeff_update = 1
 Cost_Update_Threshold = 1
 Target = get_circle_points(10, 30)
@@ -42,7 +46,7 @@ Target = get_line_points()
 Target_Update_Threshold = 0.5
 N_mpc_init = 20
 
-
+# plot_error(save_path,Qcoeff_init,Rcoeff_init,N_mpc_init)
 # global variables
 
 landmarks = np.array([
@@ -68,8 +72,8 @@ class FilterConfiguration(object):
         # Process and measurement noise covariance matrices
         self.V = np.diag([0.3, 0.3, 0.1]) ** 2  # Process noise covariance
         # Measurement noise variance (range measurements)
-        self.W_range = 0.1 ** 2
-        self.W_bearing = (np.pi * 0.05 / 180.0) ** 2
+        self.W_range = 5 ** 2
+        self.W_bearing = (np.pi * 2.5 / 180.0) ** 2
 
         # Initial conditions for the filter
         self.x0 = np.array([0,0,0])
@@ -182,7 +186,8 @@ def main():
     # or you can linearize around the current state and control of the robot
     # in the second case case you need to update the matrices A and B at each time step
     # and recall everytime the method updateSystemMatrices
-    init_pos  = np.array([2.0, 3.0])
+    init_pos  = np.array([0, 0])
+    # init_pos  = np.array([2.0, 3.0])
     # init_quat = np.array([0,0,0.3827,0.9239])
     theta = 0.0
     init_quat = np.array([0.0, 0.0, np.sin(theta / 2), np.cos(theta / 2)])
@@ -211,6 +216,7 @@ def main():
     init_interface_all_wheels = ["velocity", "velocity", "velocity", "velocity"]
     cmd.SetControlCmd(init_angular_wheels_velocity_cmd, init_interface_all_wheels)
     Tre_idx = 0
+    error = []
     if EKF:
         # Create the estimator and start it.
         if sensor_type == "R":
@@ -278,6 +284,7 @@ def main():
         
         if Target is not None:
             x0_mpc -= Target[Tre_idx]
+            error.append(x0_mpc)
             x0_mpc[2] = wrap_angle(x0_mpc[2])
             # update target if the robot is close to the target
             if (abs(x0_mpc[0:2])<Target_Update_Threshold).all(): 
@@ -285,7 +292,9 @@ def main():
                 Qcoeff = Qcoeff_init
                 Rcoeff = Rcoeff_init
                 if Tre_idx == len(Target):
-                    break
+                    Tre_idx -= 1
+                    ## =================comment this line if you don't want to end the simulation when the robot reaches the target============================
+                    # break
 
         if Terminal:
             regulator.update_P()
@@ -386,6 +395,14 @@ def main():
     plt.title('Robot Trajectory')
     plt.legend()
     plt.grid()
+    if Plot_Error:
+        error = np.array(error)
+        plt.figure()
+        plt.plot(error[:,0], label='x error')
+        plt.plot(error[:,1], label='y error')
+        plt.plot(error[:,2], label='theta error')
+        plt.legend()
+        plt.grid()
     ## save figure with parameters in the name
     if save_fig:
         save_path = "./242/final"
@@ -406,7 +423,16 @@ def main():
                 plt.savefig(save_path + f"/update_QR_{Qcoeff_init}_{Rcoeff_init}_{Qcoeff}_{Rcoeff}_{N_mpc_init}.png")
             else:
                 plt.savefig(save_path + f"/{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}.png")
+    ## save error data with pickle
 
+    if not EKF:
+        save_path = "./242/final"
+        with open(save_path + f"/error_{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}.pkl".replace(" ",""), 'wb') as f:
+            pickle.dump(error, f)
+    else:
+        save_path = "./242/final"
+        with open(save_path + f"/error_{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}_noEKF.pkl".replace(" ",""), 'wb') as f:
+            pickle.dump(error, f)
     # 显示图形
     plt.show()
 
