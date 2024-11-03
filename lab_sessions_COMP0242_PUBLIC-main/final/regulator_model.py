@@ -181,9 +181,9 @@ class RegulatorModel:
             [delta_t * np.sin(theta0), 0],
             [0, delta_t]
         ])
-
-        self.A = A
-        self.B = B
+        if is_controllable(A,B):
+            self.A = A
+            self.B = B
         self.C = np.eye(num_outputs)
         
 
@@ -248,25 +248,42 @@ class RegulatorModel:
             P = solve_discrete_are(self.A, self.B, self.Q, self.R)
             self.P = P
         except np.linalg.LinAlgError:
+            is_controllable(self.A,self.B)
             P = self.riccati_iteration(self.A, self.B, self.Q, self.R)
 
         #     ...
         # is_controllable(self.A,self.B)
 
-    def riccati_iteration(self,A, B, Q, R, max_iter=1000, tol=1e-6):
+    def riccati_iteration(self,A, B, Q, R, max_iter=10000, tol=1e-4):
         P = Q  # 初始值设为 Q 矩阵
         for _ in range(max_iter):
             P_next = Q + A.T @ P @ A - A.T @ P @ B @ np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A
             # 检查是否收敛
-            if np.linalg.norm(P_next - P) < tol:
+            if (norm := np.linalg.norm(P_next - P)) < tol:
                 return P_next
             P = P_next
+            print(norm)
         raise ValueError("Riccati iteration did not converge")
         
 
-    def get_u_DARE(self,x_t):
-        u_t_star = -np.linalg.inv(self.R + self.B.T @ self.P @ self.B) @ self.B.T @ self.P @ self.A @ x_t
-        return u_t_star
+    def get_u_DARE(self,x_t,method = "FinteHorizon"):
+        if method == "InfiniteHorizon":
+            # Compute the infinite horizon optimal control
+            u_t_star = -np.linalg.inv(self.R + self.B.T @ self.P @ self.B) @ self.B.T @ self.P @ self.A @ x_t 
+            return u_t_star
+        else:
+            # Compute the finite horizon optimal control
+            S_bar, T_bar, Q_bar, R_bar = self.propagation_model_regulator_fixed_std()
+            H,F = self.compute_H_and_F(S_bar, T_bar, Q_bar, R_bar)
+            ## Update H and F with P
+            H[-self.A.shape[0]:, -self.A.shape[0]:] += self.P
+
+            # Compute the optimal control sequence
+            H_inv = np.linalg.inv(H)
+            u_mpc = -H_inv @ F @ x_t
+            # Return the optimal control sequence
+            return u_mpc[0:self.m] 
+
     
     def get_u(self,x_t):
         S_bar, T_bar, Q_bar, R_bar = self.propagation_model_regulator_fixed_std()

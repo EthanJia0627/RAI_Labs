@@ -15,14 +15,15 @@ save_path = "./242/final"
 
 # Parameters for the simulation
 update_AB = True
-update_QR = True
-Terminal = False
-EKF = True
+update_QR = False
+Terminal = True
+Terminal_Methode = "FiniteHorizon"
+EKF = False
 sensor_type = "R"
 save_fig = False
 # Parameters for the MPC controller
-Qcoeff_init = np.array([680, 680, 180])
-Rcoeff_init = 1
+Qcoeff_init = np.array([680, 690, 180])
+Rcoeff_init = 3.5
 Qcoeff_update = np.array([1200, 1200, 380.0])
 Rcoeff_update = 0.5
 N_mpc_init = 10
@@ -166,7 +167,7 @@ def main():
     init_quat = np.array([0,0,0.3827,0.9239])
     init_base_bearing_ = quaternion2bearing(init_quat[3], init_quat[0], init_quat[1], init_quat[2])
     cur_state_x_for_linearization = [init_pos[0], init_pos[1], init_base_bearing_]
-    cur_u_for_linearization = np.zeros(num_controls)
+    cur_u_for_linearization = np.array([0.001, 0.001])
     regulator.updateSystemMatrices(sim,cur_state_x_for_linearization,cur_u_for_linearization)
     is_controllable(regulator.A,regulator.B)
     # Define the cost matrices
@@ -255,7 +256,7 @@ def main():
 
         if Terminal:
             regulator.update_P()
-            u_mpc = regulator.get_u_DARE(x0_mpc)
+            u_mpc = regulator.get_u_DARE(x0_mpc,Terminal_Methode)
         else:
             if update_QR:
                 if (abs(x0_mpc)<1).all(): 

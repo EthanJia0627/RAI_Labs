@@ -37,7 +37,8 @@ def is_controllable(A,B):
 
     if rank_of_controllability == n:
         print("The system is controllable.")
+        return True
     else:
         print("The system is not controllable.")
-
+        return False
 # is_controllable(A,B)
