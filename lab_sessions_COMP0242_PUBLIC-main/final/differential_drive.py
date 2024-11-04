@@ -42,29 +42,30 @@ Qcoeff_update = np.array([80,80,1200])
 Rcoeff_update = 1
 Cost_Update_Threshold = 1
 Target = get_circle_points(10, 30)
-Target = get_line_points()
+# Target = get_line_points()
+# Target = np.array([[0,0,0]])
 Target_Update_Threshold = 0.5
 N_mpc_init = 20
 
 # plot_error(save_path,Qcoeff_init,Rcoeff_init,N_mpc_init)
-# global variables
+# # global variables
 
-landmarks = np.array([
-            [-1, -1],
-            [-1, 3],
-            [3, -1],
-            [3,3],
-            [-1,1],
-            [1,-1],
-            [1,3],
-            [3,1],
-            [1,1]
-        ])
+# landmarks = np.array([
+#             [-1, -1],
+#             [-1, 3],
+#             [3, -1],
+#             [3,3],
+#             [-1,1],
+#             [1,-1],
+#             [1,3],
+#             [3,1],
+#             [1,1]
+#         ])
 
-# x_range = np.linspace(-10, 10, num=5)  # 5个x坐标
-# y_range = np.linspace(-20, 0, num=5)   # 5个y坐标
-# landmarks = np.array(np.meshgrid(x_range, y_range)).T.reshape(-1, 2)
-# landmarks = landmarks[~np.all(landmarks == [0, 0], axis=1)]
+x_range = np.linspace(-10, 10, num=5)  # 5 points in x
+y_range = np.linspace(-20, 0, num=5)   # 5 points in y
+landmarks = np.array(np.meshgrid(x_range, y_range)).T.reshape(-1, 2)
+landmarks = landmarks[~np.all(landmarks == [0, 0], axis=1)]
 
 
 class FilterConfiguration(object):
@@ -186,8 +187,8 @@ def main():
     # or you can linearize around the current state and control of the robot
     # in the second case case you need to update the matrices A and B at each time step
     # and recall everytime the method updateSystemMatrices
-    init_pos  = np.array([0, 0])
-    # init_pos  = np.array([2.0, 3.0])
+    # init_pos  = np.array([0, 0])
+    init_pos  = np.array([2.0, 3.0])
     # init_quat = np.array([0,0,0.3827,0.9239])
     theta = 0.0
     init_quat = np.array([0.0, 0.0, np.sin(theta / 2), np.cos(theta / 2)])
@@ -294,7 +295,7 @@ def main():
                 if Tre_idx == len(Target):
                     Tre_idx -= 1
                     ## =================comment this line if you don't want to end the simulation when the robot reaches the target============================
-                    # break
+                    break
 
         if Terminal:
             regulator.update_P()
@@ -347,12 +348,12 @@ def main():
         plt.clf()
         x_vals = np.array(base_pos_estimate_all)[:,0]
         y_vals = np.array(base_pos_estimate_all)[:,1]
-        plt.plot(x_vals, y_vals, label='Estimated Trajectory', color='g', marker='.', linestyle='-', markersize=4 , zorder=4)
-        plt.scatter(x_vals[-1], y_vals[-1], label='Final Position', color='orange', marker='x', s=150, zorder=5)
+        plt.plot(x_vals, y_vals, label='Estimated Trajectory', color='g', marker='.', linestyle='-', markersize=4 , zorder=3)
+        # plt.scatter(x_vals[-1], y_vals[-1], label='Final Position', color='orange', marker='x', s=150, zorder=5)
         # plot nonoise position
         x_vals = np.array(base_pos_nonoise_all)[:,0]
         y_vals = np.array(base_pos_nonoise_all)[:,1]
-        plt.plot(x_vals, y_vals, label='No Noise Trajectory', color='b', marker='.', linestyle='-', markersize=4)
+        plt.plot(x_vals, y_vals, label='No Noise Trajectory', color='b', marker='.', linestyle='-', markersize=2, zorder=4)
         # plot landmarks with triangle
         # Plot landmarks with the label only once
         for idx, lm in enumerate(landmarks):
@@ -372,8 +373,8 @@ def main():
     # for i in [len(base_pos_all)-1]:
     #     x, y , _= base_pos_all[i]
     #     theta = base_bearing_all[i]
-    #     dx = arrow_scale * np.cos(theta)  # 根据 θ 计算 x 方向的箭头长度
-    #     dy = arrow_scale * np.sin(theta)  # 根据 θ 计算 y 方向的箭头长度
+    #     dx = arrow_scale * np.cos(theta)  # length of arrow in x direction
+    #     dy = arrow_scale * np.sin(theta)  # length of arrow in y direction
     #     plt.arrow(x, y, dx, dy, head_width=0.1, head_length=0.1, fc='b', ec='b')
     
     ## plot destination with only one label
@@ -425,15 +426,17 @@ def main():
                 plt.savefig(save_path + f"/{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}.png")
     ## save error data with pickle
 
-    if not EKF:
-        save_path = "./242/final"
-        with open(save_path + f"/error_{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}.pkl".replace(" ",""), 'wb') as f:
-            pickle.dump(error, f)
-    else:
-        save_path = "./242/final"
-        with open(save_path + f"/error_{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}_noEKF.pkl".replace(" ",""), 'wb') as f:
-            pickle.dump(error, f)
-    # 显示图形
+    # if EKF:
+    #     save_path = "./242/final"
+    #     with open(save_path + f"/error_{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}.pkl".replace(" ",""), 'wb') as f:
+    #         pickle.dump(error, f)
+    # else:
+    #     save_path = "./242/final"
+    #     with open(save_path + f"/error_{Qcoeff_init}_{Rcoeff_init}_{N_mpc_init}_noEKF.pkl".replace(" ",""), 'wb') as f:
+    #         pickle.dump(error, f)
+    
+    
+    # # show the plot
     plt.show()
 
 

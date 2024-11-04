@@ -25,6 +25,47 @@ class Map(object):
         ])):
         self.landmarks = np.array(landmarks)
 
+# class Map(object):
+#     def __init__(self):
+#         num_landmarks = 10
+#         grid_size = int(np.ceil(np.sqrt(num_landmarks))) 
+
+#         x_coords = np.linspace(-40, 40, grid_size)
+#         y_coords = np.linspace(-40, 40, grid_size)
+        
+#         self.landmarks = []
+#         for x in x_coords:
+#             for y in y_coords:
+#                 if len(self.landmarks) < num_landmarks:
+#                     self.landmarks.append([x, y])
+        
+#         self.landmarks = np.array(self.landmarks)    
+
+# class Map(object):
+#     def __init__(self):
+#         num_landmarks_per_side = 5  # 每条边上的地标数量
+#         x_coords = np.linspace(-30, 30, num_landmarks_per_side)
+#         y_coords = np.linspace(-30, 30, num_landmarks_per_side)
+
+#         self.landmarks = []
+
+#         # 上边界
+#         for x in x_coords:
+#             self.landmarks.append([x, 30])
+
+#         # 下边界
+#         for x in x_coords:
+#             self.landmarks.append([x, -30])
+
+#         # 左边界
+#         for y in y_coords:
+#             self.landmarks.append([-30, y])
+
+#         # 右边界
+#         for y in y_coords:
+#             self.landmarks.append([30, y])
+
+#         self.landmarks = np.array(self.landmarks)
 
 class RobotEstimator_R(object):
 
