@@ -4,14 +4,14 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import matplotlib.pyplot as plt
-
+from utils import create_data_of_Task1, ShallowCorrectorMLP, DeepCorrectorMLP
 
 ## Task 1: Trajectory Tracking with MLP Correction
 # settings
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 shallow = True
 if shallow:
-    hidden_size = 64
+    hidden_size = 128
 else:
     hidden_layers = 3
     hidden_size = [64, 64, 64]
@@ -19,8 +19,7 @@ batch_size = 32
 learning_rate = 0.00001
 avtivation = "ReLU"
 save_data = True
-save_path = "./245/final/"
-
+save_path = "./245/final/task1/"
 
 # Constants
 m = 1.0  # Mass (kg)
@@ -30,80 +29,19 @@ k_d = 10   # Derivative gain
 dt = 0.01  # Time step
 num_samples = 1000  # Number of samples in dataset
 
-# Generate synthetic data for trajectory tracking
-t = np.linspace(0, 10, num_samples)
-q_target = np.sin(t)
-dot_q_target = np.cos(t)
-
-# Initial conditions for training data generation
-q = 0
-dot_q = 0
-X = []
-Y = []
-
-for i in range(num_samples):
-    # PD control output
-    tau = k_p * (q_target[i] - q) + k_d * (dot_q_target[i] - dot_q)
-    # Ideal motor dynamics (variable mass for realism)
-    #m_real = m * (1 + 0.1 * np.random.randn())  # Mass varies by +/-10%
-    ddot_q_real = (tau - b * dot_q) / m
-    
-    # Calculate error
-    ddot_q_ideal = (tau) / m
-    ddot_q_error = ddot_q_ideal - ddot_q_real
-    
-    # Store data
-    X.append([q, dot_q, q_target[i], dot_q_target[i]])
-    Y.append(ddot_q_error)
-    
-    # Update state
-    dot_q += ddot_q_real * dt
-    q += dot_q * dt
-
-# Convert data for PyTorch
-X_tensor = torch.tensor(X, dtype=torch.float32)
-Y_tensor = torch.tensor(Y, dtype=torch.float32).view(-1, 1)
+X_tensor,Y_tensor,q_target,dot_q_target,t = create_data_of_Task1()
 
 # Dataset and DataLoader
 dataset = TensorDataset(X_tensor, Y_tensor)
 train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # ShallowCorrectorMLP Model Definition
-class ShallowCorrectorMLP(nn.Module):
-    def __init__(self,hidden_size=64):
-        super(ShallowCorrectorMLP, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(4, hidden_size),
-            # we commneted because it is not shallow if we add more layers
-            # nn.ReLU(),
-            # nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(hidden_size, 1)
-        )
 
-    def forward(self, x):
-        return self.layers(x)
-    
-# DeepCorrectorMLP Model Definition
-class DeepCorrectorMLP(nn.Module):
-    def __init__(self,hidden_layers = 2,hidden_size=[64,64]):
-        super(DeepCorrectorMLP, self).__init__()
-        self.layers = nn.ModuleList()
-        for i in range(hidden_layers):
-            self.layers.append(nn.Sequential(
-                nn.Linear(hidden_size[i-1] if i > 0 else 4, hidden_size[i]),
-                nn.ReLU()
-            ))
-        self.layers.append(nn.Linear(hidden_size[-1], 1))
-    def forward(self, x):
-        for layer in self.layers:
-            x = layer(x)
-        return x
 # Model, Loss, Optimizer
 if shallow:
-    model = ShallowCorrectorMLP(hidden_size)
+    model = ShallowCorrectorMLP(hidden_size).to(device)
 else:
-    model = DeepCorrectorMLP(hidden_layers, hidden_size)
+    model = DeepCorrectorMLP(hidden_layers, hidden_size).to(device)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -146,7 +84,7 @@ dot_q_test = 0
 for i in range(len(t)):
     # Apply MLP correction
     tau = k_p * (q_target[i] - q_test) + k_d * (dot_q_target[i] - dot_q_test)
-    inputs = torch.tensor([q_test, dot_q_test, q_target[i], dot_q_target[i]], dtype=torch.float32)
+    inputs = torch.tensor([q_test, dot_q_test, q_target[i], dot_q_target[i]], dtype=torch.float32,device=device)
     correction = model(inputs.unsqueeze(0)).item()
     ddot_q_corrected =(tau - b * dot_q_test + correction) / m
     dot_q_test += ddot_q_corrected * dt
