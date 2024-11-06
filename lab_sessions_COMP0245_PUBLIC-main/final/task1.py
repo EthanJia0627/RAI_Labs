@@ -13,8 +13,8 @@ shallow = True
 if shallow:
     hidden_size = 128
 else:
-    hidden_layers = 3
-    hidden_size = [64, 64, 64]
+    hidden_layers = 2
+    hidden_size = [128, 128]
 batch_size = 32
 learning_rate = 0.00001
 avtivation = "ReLU"
