@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from utils import create_data_of_Task1, ShallowCorrectorMLP, DeepCorrectorMLP
 import matplotlib.pyplot as plt
@@ -112,43 +113,83 @@ def Compare_No_Correction(model_params,title = "",save_fig = False):
     plt.show()
 
 def get_train_losses(model_params):
-    if model_params['shallow']:
-        model = ShallowCorrectorMLP(model_params['hidden_size']).to(device)
-        model_path = f"{save_path}shallow_corrector_mlp_{model_params['hidden_size']}_{model_params['activation']}_{model_params['batch_size']}_{model_params['learning_rate']}.pth"
-    else:
-        model = DeepCorrectorMLP(model_params['hidden_layers'],model_params['hidden_size']).to(device)
-        model_path = f"{save_path}deep_corrector_mlp_{model_params['hidden_layers']}_{model_params['hidden_size']}_{model_params['activation']}_{model_params['batch_size']}_{model_params['learning_rate']}.pth"
-    model.load_state_dict(torch.load(model_path))
-    with open(f'{save_path}train_losses_{model_params["hidden_size"]}_{model_params["activation"]}_{model_params["learning_rate"]}.pkl', 'rb') as f:
+    with open(f'{save_path}train_losses_{model_params["hidden_size"]}_{model_params["activation"]}_{model_params["batch_size"]}_{model_params["learning_rate"]}.pkl', 'rb') as f:
         train_losses = pickle.load(f)
     return min(train_losses)
 
-train_losses = []
-model_list = []
-for layer_size in [32,64,96,128]:
-    # model_params = {
-    #     'shallow': True,
-    #     'hidden_size': layer_size,
-    #     'activation': 'ReLU',
-    #     'batch_size': 32,
-    #     'learning_rate': 0.00001,
-    #     'name': f'Shallow MLP (hidden size: {layer_size})',
-    #     'color': 'r'
-    # }
-    # model_list.append(model_params)
-    model_params = {
-        'shallow': False,
-        'hidden_layers': 2,
-        'hidden_size': [layer_size,layer_size],
-        'activation': 'ReLU',
-        'batch_size': 32,
-        'learning_rate': 0.00001,
-        'name': f'Deep MLP (hidden size: {layer_size})',
-        'color': 'b'
-    }
-    model_list.append(model_params)
-    train_losses.append(get_train_losses(model_params))
-print(train_losses)
+def Compare_Loss(List_of_Models,title = "",save_fig = False):
+    for model_params in List_of_Models:
+        with open(f'{save_path}train_losses_{model_params["hidden_size"]}_{model_params["activation"]}_{model_params["batch_size"]}_{model_params["learning_rate"]}.pkl', 'rb') as f:
+            train_losses = pickle.load(f)
+        plt.plot(np.log(train_losses), label=f'{model_params["name"]}')
+    plt.title(title)
+    plt.xlabel('Epoch')
+    plt.ylabel('Log Loss')
+    plt.legend()
+    if save_fig:
+        plt.savefig(f"{save_path}{title}.png")
+
+def Loss_heatmap(batch_list,lr_list):
+    loss_matrix = np.zeros((len(batch_list),len(lr_list)))
+    for i,batch in enumerate(batch_list):
+        for j,lr in enumerate(lr_list):
+            with open(f'{save_path}train_losses_{[32,32]}_ReLU_{batch}_{lr}.pkl', 'rb') as f:
+                train_losses = pickle.load(f)
+            loss_matrix[i,j] = min(np.log(train_losses))
+    plt.imshow(loss_matrix, cmap='hot', interpolation='nearest')
+    plt.colorbar()
+    plt.xlabel('Learning Rate')
+    plt.xticks(np.arange(len(lr_list)),np.log10(lr_list))
+    plt.ylabel('Batch Size')
+    plt.yticks(np.arange(len(batch_list)),batch_list)
+    plt.title('Loss Heatmap (Deep MLP)')
+    plt.show()
+
+
+
+batch_list = [8,16,32,64,128,256,512,1000]
+lr_list = [1.0, 1e-1, 1e-2, 1e-3 , 1e-4,1e-5,1e-6]
+Loss_heatmap(batch_list,lr_list)
+
+# shallow_train_losses = []
+# deep_train_losses = []
+# model_list = []
+# for batch in (batch_list:=[32,64,128,256,1000]):
+#     model_params = {
+#         'shallow': True,
+#         'hidden_size': 32,
+#         'activation': 'ReLU',
+#         'batch_size': batch,
+#         'learning_rate': 0.0001,
+#         'name': f'Shallow MLP (batch size: {batch})',
+#         'color': 'r'
+#     }
+#     model_list.append(model_params)
+#     shallow_train_losses.append(get_train_losses(model_params))
+
+#     # model_params = {
+#     #     'shallow': False,
+#     #     'hidden_layers': 2,
+#     #     'hidden_size': [32,32],
+#     #     'activation': 'ReLU',
+#     #     'batch_size': batch,
+#     #     'learning_rate': 0.0001,
+#     #     'name': f'Deep MLP (batch size: {batch})',
+#     #     'color': 'b'
+#     # }
+#     # model_list.append(model_params)
+#     # deep_train_losses.append(get_train_losses(model_params))
+# Compare_Loss(model_list,title = "Training Loss with different batch sizes",save_fig=True)
+
+
+# plt.figure(figsize=(12, 6))
+# plt.plot(np.log10(lr_list),np.log(shallow_train_losses), 'r-', label='Shallow MLP with size 128')
+# plt.plot(np.log10(lr_list),np.log(deep_train_losses), 'b-', label='Deep MLP with size 128')
+# plt.title('Training Loss with different learning rates')
+# plt.xlabel('Log10 Learning Rate')
+# plt.ylabel('Log Loss')
+# plt.legend()
+# plt.savefig(f"{save_path}training_loss.png")
 # Compare_Models(model_list,title = "Shallow vs Deep MLP with different hidden sizes",save_fig=True)
 
 
