@@ -11,7 +11,7 @@ from sklearn.ensemble import RandomForestRegressor
 import joblib  # For saving and loading models
 
 # Set the model type: "neural_network" or "random_forest"
-neural_network_or_random_forest = "random_forest"  # Change to "random_forest" to use Random Forest models
+neural_network_or_random_forest = "neural_network"  # Change to "random_forest" to use Random Forest models
 
 # MLP Model Definition
 class MLP(nn.Module):
@@ -83,7 +83,7 @@ def main():
     root_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Configuration for the simulation
-    sim = pb.SimInterface(conf_file_name, conf_file_path_ext=root_dir)  # Initialize simulation interface
+    sim = pb.SimInterface(conf_file_name, conf_file_path_ext=root_dir,use_gui=False)  # Initialize simulation interface
 
     # Get active joint names from the simulation
     ext_names = sim.getNameActiveJoints()
@@ -114,6 +114,7 @@ def main():
     # Generate test time array
     test_time_array = np.arange(time_array.min(), time_array.max(), time_step)
 
+    
     for goal_position in goal_positions:
         print("Testing new goal position------------------------------------")
         print(f"Goal position: {goal_position}")
@@ -148,7 +149,8 @@ def main():
         qd_des_over_time = np.gradient(predicted_joint_positions_over_time, axis=0, edge_order=2) / time_step
         # Clip the joint velocities to the joint limits
         qd_des_over_time_clipped = np.clip(qd_des_over_time, -np.array(joint_vel_limits), np.array(joint_vel_limits))
-
+        predicted_cartesian_positions_over_time = np.zeros((len(test_time_array), 3))  # Shape: (num_points, 3)
+        mes_cartesian_positions_over_time = np.zeros((len(test_time_array), 3))  # Shape: (num_points, 3)
         # Data collection loop
         while current_time < test_time_array.max():
             # Measure current state
@@ -164,7 +166,11 @@ def main():
             # Get q_des and qd_des_clip from predicted data
             q_des = predicted_joint_positions_over_time[current_index, :]  # Shape: (7,)
             qd_des_clip = qd_des_over_time_clipped[current_index, :]      # Shape: (7,)
-
+            # Compute the desired cartesian position
+            predicted_cartesian_positions_over_time[current_index, :], _ = dyn_model.ComputeFK(q_des, controlled_frame_name)
+            # Comptue measured cartesian position
+            mes_cartesian_positions_over_time[current_index, :], _ = dyn_model.ComputeFK(q_mes, controlled_frame_name)
+            
             # Control command
             tau_cmd = feedback_lin_ctrl(dyn_model, q_mes, qd_mes, q_des, qd_des_clip, kp, kd)
             cmd.SetControlCmd(tau_cmd, ["torque"] * 7)  # Set the torque command
@@ -190,6 +196,31 @@ def main():
         # Compute position error
         position_error = np.linalg.norm(final_cartesian_pos - goal_position)
         print(f"Position error between computed position and goal: {position_error}")
+        # Visualize results
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        # Visualize the goal position and the final computed position
+        ax.scatter(goal_position[0], goal_position[1], goal_position[2], color='r', label='Goal Position')
+        ax.scatter(final_cartesian_pos[0], final_cartesian_pos[1], final_cartesian_pos[2], color='b', label='Computed Position')
+        # Visualize the end effector trajectory in cartesian space
+        # Delete the point with value [0, 0, 0] (not the initial point)
+        # ax.plot(mes_cartesian_positions_over_time[:, 0], mes_cartesian_positions_over_time[:, 1], mes_cartesian_positions_over_time[:, 2], label='Measured Trajectory')
+        delete_indices = []
+        for i,point in enumerate(predicted_cartesian_positions_over_time):
+            if np.all(point == 0):
+                delete_indices.append(i)
+        predicted_cartesian_positions_over_time = np.delete(predicted_cartesian_positions_over_time, delete_indices, axis=0)
+        ax.plot(predicted_cartesian_positions_over_time[:, 0], predicted_cartesian_positions_over_time[:, 1], predicted_cartesian_positions_over_time[:, 2], label='Predicted Trajectory')
+        
+        
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        ax.legend()
+        plt.show()
+
+
 
 if __name__ == '__main__':
     main()
+    print("Done!")

@@ -4,12 +4,41 @@ import os
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import learning_curve
+import matplotlib.pyplot as pl
 import joblib  # For saving and loading models
 
 # Set the visualization flag
 visualize = True  # Set to True to enable visualization, False to disable
-training_flag = True  # Set to True to train the models, False to skip training
+training_flag = True # Set to True to train the models, False to skip training
 test_cartesian_accuracy_flag = True  # Set to True to test the model with a new goal position, False to skip testing
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+filename = os.path.join(script_dir, 'data.pkl')  # Replace with your actual filename
+depths_filename = os.path.join(script_dir, 'average_depths.pkl')  # 文件用于保存 average_depths
+
+# Load data
+
+# Check if the file exists
+if not os.path.isfile(filename):
+    print(f"Error: File {filename} not found in {script_dir}")
+else:
+    with open(filename, 'rb') as f:
+        data = pickle.load(f)
+
+    # Extract data
+    time_array = np.array(data['time'])            # Shape: (N,)
+    q_mes_all = np.array(data['q_mes_all'])        # Shape: (N, 7)
+    goal_positions = np.array(data['goal_positions'])  # Shape: (N, 3)
+
+    # Combine time and goal data to form the input features
+    X = np.hstack((time_array.reshape(-1, 1), goal_positions))  # Shape: (N, 4)
+    # For the purpose of learning curve analysis, select the first joint's position as y
+    y = q_mes_all[:, 0]  # Shape: (N,)
+
+average_depths = []
+max_depth_set = [None, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+max_depth_num = max_depth_set[1]
 
 if training_flag:
     # Load the saved data
@@ -42,7 +71,7 @@ if training_flag:
         x_test_list = []
         y_train_list = []
         y_test_list = []
-
+        
         for joint_idx in range(7):
             # Extract joint data
             y = q_mes_all[:, joint_idx]  # Shape: (N,)
@@ -61,7 +90,7 @@ if training_flag:
             # Initialize the Random Forest regressor
             rf_model = RandomForestRegressor(
                 n_estimators=100,    # Number of trees
-                max_depth=None,        # Maximum depth of the tree
+                max_depth=max_depth_num,        # Maximum depth of the tree
                 random_state=42,
                 n_jobs=-1            # Use all available cores
             )
@@ -69,6 +98,12 @@ if training_flag:
             # Train the model
             rf_model.fit(X_train, y_train)
 
+            #训练完成后，访问每棵树的深度
+            tree_depths = [tree.tree_.max_depth for tree in rf_model.estimators_]
+            average_depth = sum(tree_depths) / len(tree_depths)
+            average_depths.append(average_depth)  # 将每个关节的平均深度添加到列
+            print(f"Joint {joint_idx+1} - Average tree depth: {average_depth}")
+    
             # Evaluate on training set
             y_train_pred = rf_model.predict(X_train)
             train_mse = np.mean((y_train - y_train_pred) ** 2)
@@ -85,7 +120,9 @@ if training_flag:
             model_filename = os.path.join(script_dir, f'rf_joint{joint_idx+1}.joblib')
             joblib.dump(rf_model, model_filename)
             print(f'Model for Joint {joint_idx+1} saved as {model_filename}')
-
+        
+        
+            
             # Visualization (if enabled)
             if visualize:
                 print(f'Visualizing results for Joint {joint_idx+1}...')
@@ -107,6 +144,64 @@ if training_flag:
                 plt.show()
 
         print("Training and visualization completed.")
+        
+        with open(depths_filename, 'wb') as f:
+            pickle.dump(average_depths, f)
+            print("Average depths saved to file.")
+else:
+    # 尝试从文件加载 average_depths
+    if os.path.isfile(depths_filename):
+        with open(depths_filename, 'rb') as f:
+            average_depths = pickle.load(f)
+            print("Average depths loaded from file.")
+    else:
+        print("No average depths file found. Set training_flag=True to train and save depths.")        
+
+
+rf_model = RandomForestRegressor(
+    n_estimators=100,
+    max_depth=max_depth_num,
+    random_state=42,
+    n_jobs=-1
+)
+
+# 生成学习曲线
+train_sizes, train_scores, val_scores = learning_curve(
+    rf_model, X, y, cv=5, scoring='neg_mean_squared_error', train_sizes=np.linspace(0.1, 1.0, 5)
+)
+train_errors = -train_scores.mean(axis=1)
+val_errors = -val_scores.mean(axis=1)
+
+# 绘制学习曲线
+plt.figure(figsize=(10, 5))
+plt.plot(train_sizes, np.log10(train_errors), label='Train MSE (log10 scale)')
+plt.plot(train_sizes, np.log10(val_errors), label='Validation MSE (log10 scale)')
+plt.xlabel('Training set size')
+plt.ylabel('Mean Squared Error')
+plt.title('Learning Curve for Random Forest Model')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# 在训练完成后绘制每个关节的平均树深度柱状图
+joints = [f"Joint {i+1}" for i in range(len(average_depths))]
+
+plt.figure(figsize=(10, 6))
+bars = plt.bar(joints, average_depths, color='blue')
+plt.xlabel("Joints")
+plt.ylabel("Average Tree Depth")
+plt.title("Average Tree Depth for Each Joint in Random Forest Model")
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+# 添加数值标签
+for bar, avg_depth in zip(bars, average_depths):
+    plt.text(
+        bar.get_x() + bar.get_width() / 2,  # x坐标：柱子的中心
+        bar.get_height(),                   # y坐标：柱子的高度（即平均深度值）
+        f'{avg_depth:.1f}',                 # 标签内容，保留一位小数
+        ha='center', va='bottom'            # 标签居中并显示在柱子上方
+    )
+
+plt.show()
 
 if test_cartesian_accuracy_flag:
 
@@ -254,3 +349,6 @@ if test_cartesian_accuracy_flag:
             ax.set_title('Predicted Cartesian Trajectory')
             plt.legend()
             plt.show()
+
+        
+        
