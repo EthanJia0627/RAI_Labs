@@ -172,7 +172,7 @@ def main():
                 # Predict joint positions using the Random Forest
                 predictions = models[joint_idx].predict(test_input)  # Shape: (num_points,)
             if Filter_flag:
-                predictions = Filter(predicted_joint_positions_over_time, predictions, type = "mean", window_size = 10)
+                predictions = Filter(predictions, type = "mean", window_size = 500)
             # Store the predicted joint positions
             predicted_joint_positions_over_time[:, joint_idx] = predictions
 

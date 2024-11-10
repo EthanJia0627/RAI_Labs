@@ -147,8 +147,11 @@ def T1_Loss_heatmap(batch_list,lr_list):
     plt.title('Loss Heatmap (Deep MLP)')
     plt.show()
 
-def T3_get_data(num,neural_network_or_random_forest):
-    save_filename = os.path.join(save_path, f'data_{num}_{neural_network_or_random_forest}.pkl')
+def T3_get_data(num,neural_network_or_random_forest,filter = False):
+    if filter:
+        save_filename = os.path.join(save_path, f'data_{num}_{neural_network_or_random_forest}_filter.pkl')
+    else:
+        save_filename = os.path.join(save_path, f'data_{num}_{neural_network_or_random_forest}.pkl')
     with open(save_filename, 'rb') as f:
         save_data = pickle.load(f)
     goal_position = save_data['goal_position']
@@ -240,6 +243,34 @@ def T3_Compare_des_mes():
                 plt.savefig(f"{save_path}des_mes_{j}_{i}_{model}.png")
                 plt.close()
 
+def T3_Compare_Filter_data():
+    # Plot the desired and measured positions of the end effector over time with and without filtering
+    for i in range(10):
+        for neural_network_or_random_forest in ['neural_network','random_forest']:
+            for j in range(7):
+                fig = plt.figure(figsize=(12, 6))
+                ax0 = fig.add_subplot(121)
+                ax1 = fig.add_subplot(122)
+                for filter in [False,True]:
+                    _,_,q_des,qd_des,q_mes,qd_mes,_,tau,t,model = T3_get_data(i,neural_network_or_random_forest,filter)
+                    ax0.plot(t, q_mes[:, j], 'b--'if not filter else 'b-', label=f'Measured Position,Filter {filter}')
+                    ax0.plot(t, q_des[:, j], 'r--'if not filter else 'r-', label=f'Desired Position,Filter {filter}')
+                    ax0.set_title(f'Desired and Measured Position of joint {j} {model}')
+                    ax0.set_xlabel('Time [s]')
+                    ax0.set_ylabel('Position')
+                    ax0.legend()
+                    
+                    ax1.plot(t, tau[:, j], 'b-'if not filter else 'g-', label=f'Commanded Torque ,Filter {filter}')
+                    ax1.set_title(f'Commanded Torque of joint {j} {model}')
+                    ax1.set_xlabel('Time [s]')
+                    ax1.set_ylabel('Torque')
+                    ax1.legend()
+
+                plt.show()
+                # plt.savefig(f"{save_path}des_mes_{j}_{i}_{model}_filter.png")
+                plt.close()
+
+    
 
 
 #===================================================== Task 1 Visualization=====================================================
@@ -302,6 +333,7 @@ def T3_Compare_des_mes():
 
 #===================================================== Task 3 Visualization=====================================================
 
-T3_plot_joint_data()
-T3_plot_trajectory()
-T3_Compare_des_mes()
+# T3_plot_joint_data()
+# T3_plot_trajectory()
+# T3_Compare_des_mes()
+T3_Compare_Filter_data()
