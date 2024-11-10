@@ -266,8 +266,8 @@ def T3_Compare_Filter_data():
                     ax1.set_ylabel('Torque')
                     ax1.legend()
 
-                plt.show()
-                # plt.savefig(f"{save_path}des_mes_{j}_{i}_{model}_filter.png")
+                # plt.show()
+                plt.savefig(f"{save_path}des_mes_{j}_{i}_{model}_filter.png")
                 plt.close()
 
     
