@@ -177,8 +177,8 @@ if training_flag:
 
                 # Plot training and test loss over epochs
                 plt.figure(figsize=(10, 5))
-                plt.plot(range(1, epochs + 1), train_losses, label='Training Loss')
-                plt.plot(range(1, epochs + 1), test_losses, label='Test Loss')
+                plt.plot(range(1, epochs + 1), np.log10(train_losses), label='Training Loss (log10 scale)')
+                plt.plot(range(1, epochs + 1), np.log10(test_losses), label='Test Loss (log10 scale)')
                 plt.xlabel('Epoch')
                 plt.ylabel('Loss')
                 plt.title(f'Loss Curve for Joint {joint_idx+1}')

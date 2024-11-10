@@ -12,7 +12,7 @@ import joblib  # For saving and loading models
 visualize = True  # Set to True to enable visualization, False to disable
 training_flag = True # Set to True to train the models, False to skip training
 test_cartesian_accuracy_flag = True  # Set to True to test the model with a new goal position, False to skip testing
-
+learning_curve_flag = False  # Set to True to generate the learning curve, False to skip
 script_dir = os.path.dirname(os.path.abspath(__file__))
 filename = os.path.join(script_dir, 'data.pkl')  # Replace with your actual filename
 depths_filename = os.path.join(script_dir, 'average_depths.pkl')  # 文件用于保存 average_depths
@@ -38,7 +38,7 @@ else:
 
 average_depths = []
 max_depth_set = [None, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-max_depth_num = max_depth_set[1]
+max_depth_num = max_depth_set[0]
 
 if training_flag:
     # Load the saved data
@@ -64,14 +64,15 @@ if training_flag:
         X = np.hstack((time_array.reshape(-1, 1), goal_positions))  # Shape: (N, 4)
 
         # Split ratio
-        split_ratio = 0.8
+        split_ratio = 0.90
 
         # Initialize lists to hold training and test data for all joints
         x_train_list = []
         x_test_list = []
         y_train_list = []
         y_test_list = []
-        
+        train_mse_list = []
+        test_mse_list = []
         for joint_idx in range(7):
             # Extract joint data
             y = q_mes_all[:, joint_idx]  # Shape: (N,)
@@ -111,10 +112,14 @@ if training_flag:
             # Evaluate on test set
             y_test_pred = rf_model.predict(X_test)
             test_mse = np.mean((y_test - y_test_pred) ** 2)
+            # store the MSE values for plotting
+            train_mse_list.append(train_mse)
+            test_mse_list.append(test_mse)
 
             print(f'\nJoint {joint_idx+1}')
             print(f'Train MSE: {train_mse:.6f}')
             print(f'Test MSE: {test_mse:.6f}')
+
 
             # Save the trained model
             model_filename = os.path.join(script_dir, f'rf_joint{joint_idx+1}.joblib')
@@ -142,7 +147,16 @@ if training_flag:
                 plt.legend()
                 plt.grid(True)
                 plt.show()
-
+        # Plot the training and test MSE for each joint in log10 scale
+        plt.figure(figsize=(10, 5))
+        plt.plot(range(1, 8), np.log10(train_mse_list), label='Train MSE (log10 scale)')
+        plt.plot(range(1, 8), np.log10(test_mse_list), label='Test MSE (log10 scale)')
+        plt.xlabel('Joint Index')
+        plt.ylabel('Mean Squared Error')
+        plt.title('Training and Test MSE for Each Joint')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
         print("Training and visualization completed.")
         
         with open(depths_filename, 'wb') as f:
@@ -157,51 +171,51 @@ else:
     else:
         print("No average depths file found. Set training_flag=True to train and save depths.")        
 
-
-rf_model = RandomForestRegressor(
-    n_estimators=100,
-    max_depth=max_depth_num,
-    random_state=42,
-    n_jobs=-1
-)
-
-# 生成学习曲线
-train_sizes, train_scores, val_scores = learning_curve(
-    rf_model, X, y, cv=5, scoring='neg_mean_squared_error', train_sizes=np.linspace(0.1, 1.0, 5)
-)
-train_errors = -train_scores.mean(axis=1)
-val_errors = -val_scores.mean(axis=1)
-
-# 绘制学习曲线
-plt.figure(figsize=(10, 5))
-plt.plot(train_sizes, np.log10(train_errors), label='Train MSE (log10 scale)')
-plt.plot(train_sizes, np.log10(val_errors), label='Validation MSE (log10 scale)')
-plt.xlabel('Training set size')
-plt.ylabel('Mean Squared Error')
-plt.title('Learning Curve for Random Forest Model')
-plt.legend()
-plt.grid(True)
-plt.show()
-
-# 在训练完成后绘制每个关节的平均树深度柱状图
-joints = [f"Joint {i+1}" for i in range(len(average_depths))]
-
-plt.figure(figsize=(10, 6))
-bars = plt.bar(joints, average_depths, color='blue')
-plt.xlabel("Joints")
-plt.ylabel("Average Tree Depth")
-plt.title("Average Tree Depth for Each Joint in Random Forest Model")
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-# 添加数值标签
-for bar, avg_depth in zip(bars, average_depths):
-    plt.text(
-        bar.get_x() + bar.get_width() / 2,  # x坐标：柱子的中心
-        bar.get_height(),                   # y坐标：柱子的高度（即平均深度值）
-        f'{avg_depth:.1f}',                 # 标签内容，保留一位小数
-        ha='center', va='bottom'            # 标签居中并显示在柱子上方
+if learning_curve_flag:
+    rf_model = RandomForestRegressor(
+        n_estimators=100,
+        max_depth=max_depth_num,
+        random_state=42,
+        n_jobs=-1
     )
 
-plt.show()
+    # 生成学习曲线
+    train_sizes, train_scores, val_scores = learning_curve(
+        rf_model, X, y, cv=5, scoring='neg_mean_squared_error', train_sizes=np.linspace(0.1, 1.0, 5)
+    )
+    train_errors = -train_scores.mean(axis=1)
+    val_errors = -val_scores.mean(axis=1)
+
+    # 绘制学习曲线
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_sizes, np.log10(train_errors), label='Train MSE (log10 scale)')
+    plt.plot(train_sizes, np.log10(val_errors), label='Validation MSE (log10 scale)')
+    plt.xlabel('Training set size')
+    plt.ylabel('Mean Squared Error')
+    plt.title('Learning Curve for Random Forest Model')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # 在训练完成后绘制每个关节的平均树深度柱状图
+    joints = [f"Joint {i+1}" for i in range(len(average_depths))]
+
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(joints, average_depths, color='blue')
+    plt.xlabel("Joints")
+    plt.ylabel("Average Tree Depth")
+    plt.title("Average Tree Depth for Each Joint in Random Forest Model")
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    # 添加数值标签
+    for bar, avg_depth in zip(bars, average_depths):
+        plt.text(
+            bar.get_x() + bar.get_width() / 2,  # x坐标：柱子的中心
+            bar.get_height(),                   # y坐标：柱子的高度（即平均深度值）
+            f'{avg_depth:.1f}',                 # 标签内容，保留一位小数
+            ha='center', va='bottom'            # 标签居中并显示在柱子上方
+        )
+
+    plt.show()
 
 if test_cartesian_accuracy_flag:
 
@@ -349,6 +363,5 @@ if test_cartesian_accuracy_flag:
             ax.set_title('Predicted Cartesian Trajectory')
             plt.legend()
             plt.show()
-
         
         
