@@ -9,9 +9,11 @@ import torch.nn as nn
 import torch
 from sklearn.ensemble import RandomForestRegressor
 import joblib  # For saving and loading models
+from utils import Filter
 
 # Set the model type: "neural_network" or "random_forest"
-neural_network_or_random_forest = "random_forest"  # Change to "random_forest" to use Random Forest models
+neural_network_or_random_forest = "neural_network"  # Change to "random_forest" to use Random Forest models
+Filter_flag = True
 # Random seed for reproducibility
 np.random.seed(0)
 # MLP Model Definition
@@ -169,7 +171,8 @@ def main():
             elif neural_network_or_random_forest == "random_forest":
                 # Predict joint positions using the Random Forest
                 predictions = models[joint_idx].predict(test_input)  # Shape: (num_points,)
-
+            if Filter_flag:
+                predictions = Filter(predicted_joint_positions_over_time, predictions, type = "mean", window_size = 10)
             # Store the predicted joint positions
             predicted_joint_positions_over_time[:, joint_idx] = predictions
 
@@ -251,7 +254,10 @@ def main():
             'test_time_array': test_time_array,
             'neural_network_or_random_forest': neural_network_or_random_forest
         }
-        save_filename = os.path.join(save_path, f'data_{num}_{neural_network_or_random_forest}.pkl')
+        if Filter_flag:
+            save_filename = os.path.join(save_path, f'data_{num}_{neural_network_or_random_forest}_filter.pkl')
+        else:
+            save_filename = os.path.join(save_path, f'data_{num}_{neural_network_or_random_forest}.pkl')
         with open(save_filename, 'wb') as f:
             pickle.dump(save_data, f)
 

@@ -78,3 +78,31 @@ def create_data_of_Task1():
     Y_tensor = torch.tensor(Y, dtype=torch.float32,device=device).view(-1, 1)
 
     return X_tensor,Y_tensor,q_target,dot_q_target,t
+
+def Filter(pre_data_all,new_data, type = "mean", window_size = 10):
+    ## The Pre all data is the data that we have before the new data
+    ## The new data is the data that we want to deal with
+    ## The type is the filter type, we have mean and median
+    ## The window_size is the size of the filter window
+    ## The pre_all_data is are 2D tensor with shape (n,7) 7 is the number of joints
+    ## The new_data is a 2D tensor with shape 7, 7 is the number of joints
+    # filter each joint separately
+    for i in range(7):
+        # get joint data if window size is bigger than the data size
+        if window_size > len(pre_data_all):
+            return new_data
+        # get joint data
+        else:
+            joint_data = new_data[i]
+            # get the previous data
+            pre_joint_data = pre_data_all[-window_size:,i]
+            # get the filtered data with numpy
+            # append the new data to the previous data
+            pre_joint_data = np.append(pre_joint_data,joint_data)
+            if type == "mean":
+                filtered_data = np.mean(pre_joint_data)
+            elif type == "median":
+                filtered_data = np.median(pre_joint_data)
+            # update the new data
+            new_data[i] = filtered_data
+    return new_data
