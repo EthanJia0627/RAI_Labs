@@ -180,6 +180,9 @@ def main():
         predicted_cartesian_positions_over_time = np.zeros((len(test_time_array), 3))  # Shape: (num_points, 3)
         # mes_cartesian_positions_over_time = np.zeros((len(test_time_array), 3))  # Shape: (num_points, 3)
         # Data collection loop
+        q_mes_over_time = np.zeros((len(test_time_array), 7))  # Shape: (num_points, 7)
+        qd_mes_over_time = np.zeros((len(test_time_array), 7))  # Shape: (num_points, 7)
+        tau_cmd_over_time = np.zeros((len(test_time_array), 7))  # Shape: (num_points, 7)
         while current_time < test_time_array.max():
             # Measure current state
             q_mes = sim.GetMotorAngles(0)
@@ -196,11 +199,15 @@ def main():
             qd_des_clip = qd_des_over_time_clipped[current_index, :]      # Shape: (7,)
             # Compute the desired cartesian position
             predicted_cartesian_positions_over_time[current_index, :], _ = dyn_model.ComputeFK(q_des, controlled_frame_name)
+            q_mes_over_time[current_index, :] = q_mes
+            qd_mes_over_time[current_index, :] = qd_mes
+
             # Comptue measured cartesian position
             # mes_cartesian_positions_over_time[current_index, :], _ = dyn_model.ComputeFK(q_mes, controlled_frame_name)
             
             # Control command
             tau_cmd = feedback_lin_ctrl(dyn_model, q_mes, qd_mes, q_des, qd_des_clip, kp, kd)
+            tau_cmd_over_time[current_index, :] = tau_cmd
             cmd.SetControlCmd(tau_cmd, ["torque"] * 7)  # Set the torque command
             sim.Step(cmd, "torque")  # Simulation step with torque command
 
@@ -237,7 +244,10 @@ def main():
             'predicted_cartesian_positions_over_time': predicted_cartesian_positions_over_time,
             'q_des_over_time': predicted_joint_positions_over_time,
             'qd_des_over_time_clipped': qd_des_over_time_clipped,
+            'q_mes_over_time': q_mes_over_time,
+            'qd_mes_over_time': qd_mes_over_time,
             'final_joint_positions': final_joint_positions,
+            'tau_cmd_over_time': tau_cmd_over_time,
             'test_time_array': test_time_array,
             'neural_network_or_random_forest': neural_network_or_random_forest
         }

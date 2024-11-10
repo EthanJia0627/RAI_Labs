@@ -38,7 +38,7 @@ else:
 
 average_depths = []
 max_depth_set = [None, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-max_depth_num = max_depth_set[0]
+max_depth_num = max_depth_set[1]
 
 if training_flag:
     # Load the saved data

@@ -155,10 +155,13 @@ def T3_get_data(num,neural_network_or_random_forest):
     predicted_cartesian_positions_over_time = save_data['predicted_cartesian_positions_over_time']
     predicted_joint_positions_over_time = save_data['q_des_over_time']
     qd_des_over_time_clipped = save_data['qd_des_over_time_clipped']
+    q_mes_over_time = save_data['q_mes_over_time']
+    qd_mes_over_time = save_data['qd_mes_over_time']
     final_joint_positions = save_data['final_joint_positions']
+    tau_cmd_over_time = save_data['tau_cmd_over_time']
     test_time_array = save_data['test_time_array']
     neural_network_or_random_forest = save_data['neural_network_or_random_forest']
-    return goal_position,predicted_cartesian_positions_over_time,predicted_joint_positions_over_time,qd_des_over_time_clipped,final_joint_positions,test_time_array,neural_network_or_random_forest
+    return goal_position,predicted_cartesian_positions_over_time,predicted_joint_positions_over_time,qd_des_over_time_clipped,q_mes_over_time,qd_mes_over_time,final_joint_positions,tau_cmd_over_time,test_time_array,neural_network_or_random_forest
 
 def T3_delete_error_points(cartesian_positions_over_time):
     delete_indices = []
@@ -174,7 +177,7 @@ def T3_plot_trajectory():
         # Plot in 3D 
         ax = fig.add_subplot(111, projection='3d')
         for neural_network_or_random_forest in ['neural_network','random_forest']:
-            goal,traj,_,_,_,_,model = T3_get_data(i,neural_network_or_random_forest)
+            goal,traj,_,_,_,_,_,_,_,model = T3_get_data(i,neural_network_or_random_forest)
             traj = T3_delete_error_points(traj)
             # Plot the predicted Cartesian positions over time in 3D
             ax.plot(traj[:, 0], traj[:, 1], traj[:, 2], 'b-'if model == "neural_network" else "g-", label=f'Predicted Position {model}')
@@ -186,6 +189,7 @@ def T3_plot_trajectory():
         ax.legend()
         # Save the plot
         plt.savefig(f"{save_path}trajectory_{i}.png")
+        plt.close()
 
 def T3_plot_joint_data():
     for i in range(10):
@@ -193,7 +197,7 @@ def T3_plot_joint_data():
         # Plot position and velocity of each joint over time, sepeartely for position and velocity 
             fig,ax = plt.subplots(1, 2, figsize=(12, 6))
             for neural_network_or_random_forest in ['neural_network','random_forest']:
-                _,_,q_des,qd_des,q_final,t,model = T3_get_data(i,neural_network_or_random_forest)
+                _,_,q_des,qd_des,_,_,q_final,_,t,model = T3_get_data(i,neural_network_or_random_forest)
                 ax[0].plot(t, q_des[:, j], 'b-'if model == "neural_network" else "g-", label=f'Predicted Position {model}')
                 ax[1].plot(t, qd_des[:, j], 'b-'if model == "neural_network" else "g-", label=f'Predicted Velocity {model}')
             # ax[0].plot(t, warp_angle(q_final[j])*np.ones_like(t), 'r-', label='Final Predicted Position')
@@ -208,6 +212,35 @@ def T3_plot_joint_data():
             ax[1].legend()
             # plt.show()
             plt.savefig(f"{save_path}joint_{j}_{i}.png")
+            plt.close()
+
+def T3_Compare_des_mes():
+    # Plot the desired and measured positions of the end effector over time
+    for i in range(10):
+        for neural_network_or_random_forest in ['neural_network','random_forest']:
+            for j in range(7):
+                fig = plt.figure(figsize=(12, 6))
+                ax = fig.add_subplot(121)
+
+                _,_,q_des,qd_des,q_mes,qd_mes,_,tau,t,model = T3_get_data(i,neural_network_or_random_forest)
+                ax.plot(t, q_mes[:, j], 'b-', label=f'Measured Position {model}')
+                ax.plot(t, q_des[:, j], 'r-', label='Desired Position')
+                ax.set_title(f'Desired and Measured Position of joint {j} {model}')
+                ax.set_xlabel('Time [s]')
+                ax.set_ylabel('Position')
+                ax.legend()
+                ax = fig.add_subplot(122)
+                ax.plot(t, tau[:, j], 'b-', label=f'Commanded Torque {model}')
+                ax.set_title(f'Commanded Torque of joint {j} {model}')
+                ax.set_xlabel('Time [s]')
+                ax.set_ylabel('Torque')
+                ax.legend()
+
+                # plt.show()
+                plt.savefig(f"{save_path}des_mes_{j}_{i}_{model}.png")
+                plt.close()
+
+
 
 #===================================================== Task 1 Visualization=====================================================
 # batch_list = [8,16,32,64,128,256,512,1000]
@@ -270,4 +303,5 @@ def T3_plot_joint_data():
 #===================================================== Task 3 Visualization=====================================================
 
 T3_plot_joint_data()
-# T3_plot_trajectory()
+T3_plot_trajectory()
+T3_Compare_des_mes()
