@@ -27,7 +27,33 @@ class MLP(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+def solve_inverse_kinematics(goal_position,dyn_model):
+    # solve approximate inverse kinematics with error less than 1e-3
+    # goal_position: 3x1 numpy array
+    # return: 7x1 numpy array
+    # Initialize the joint angles with zeros
+    q = np.zeros(7)
+    error = 1
+    # Try with current joint angles and update the joint angles
+    while error > 1e-3:
+        # Compute the current position
+        current_position, _ = dyn_model.ComputeFK(q, "panda_link8")
+        # Compute the error
+        error = np.linalg.norm(goal_position - current_position)
+        # Compute the Jacobian
+        J = dyn_model.ComputeJacobian(q, "panda_link8",'global')
+        # Compute the change in joint angles
+        J_pinv = np.linalg.pinv(J.J)
+        delta_q = J_pinv[:,:3] @ (goal_position - current_position)
+        # Update the joint angles
+        q += delta_q
+    return q
+    
+    
 
+
+
+     
 def main():
     # Load the saved data
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -120,7 +146,7 @@ def main():
     for num,goal_position in enumerate(goal_positions):
         print("Testing new goal position------------------------------------")
         print(f"Goal position: {goal_position}")
-
+        # final_joint_positions = solve_inverse_kinematics(goal_position, dyn_model)
         # Initialize the simulation
         sim.ResetPose()
         current_time = 0  # Initialize current time
@@ -204,12 +230,14 @@ def main():
         save_path = './245/final/task3'
         if not os.path.exists(save_path):
             os.makedirs(save_path)
+        final_joint_positions = solve_inverse_kinematics(goal_position, dyn_model)
         # Save the data
         save_data = {
             'goal_position': goal_position,
             'predicted_cartesian_positions_over_time': predicted_cartesian_positions_over_time,
             'q_des_over_time': predicted_joint_positions_over_time,
             'qd_des_over_time_clipped': qd_des_over_time_clipped,
+            'final_joint_positions': final_joint_positions,
             'test_time_array': test_time_array,
             'neural_network_or_random_forest': neural_network_or_random_forest
         }

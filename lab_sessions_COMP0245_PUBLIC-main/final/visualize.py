@@ -9,7 +9,8 @@ import pickle
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 save_path = "./245/final/task3/"
 
-
+def warp_angle(angle):
+    return (angle + np.pi) % (2 * np.pi) - np.pi
 
 def T1_Compare_Models(List_of_Models,title = "",save_fig = False):
     # Constants
@@ -150,14 +151,14 @@ def T3_get_data(num,neural_network_or_random_forest):
     save_filename = os.path.join(save_path, f'data_{num}_{neural_network_or_random_forest}.pkl')
     with open(save_filename, 'rb') as f:
         save_data = pickle.load(f)
-    num = save_data['num']
     goal_position = save_data['goal_position']
     predicted_cartesian_positions_over_time = save_data['predicted_cartesian_positions_over_time']
     predicted_joint_positions_over_time = save_data['q_des_over_time']
     qd_des_over_time_clipped = save_data['qd_des_over_time_clipped']
+    final_joint_positions = save_data['final_joint_positions']
     test_time_array = save_data['test_time_array']
     neural_network_or_random_forest = save_data['neural_network_or_random_forest']
-    return goal_position,predicted_cartesian_positions_over_time,predicted_joint_positions_over_time,qd_des_over_time_clipped,test_time_array,neural_network_or_random_forest
+    return goal_position,predicted_cartesian_positions_over_time,predicted_joint_positions_over_time,qd_des_over_time_clipped,final_joint_positions,test_time_array,neural_network_or_random_forest
 
 def T3_delete_error_points(cartesian_positions_over_time):
     delete_indices = []
@@ -167,14 +168,13 @@ def T3_delete_error_points(cartesian_positions_over_time):
     cartesian_positions_over_time = np.delete(cartesian_positions_over_time, delete_indices, axis=0)
     return cartesian_positions_over_time
 
-
 def T3_plot_trajectory():
     for i in range(10):
         fig = plt.figure(figsize=(6, 6))
         # Plot in 3D 
         ax = fig.add_subplot(111, projection='3d')
         for neural_network_or_random_forest in ['neural_network','random_forest']:
-            goal,traj,q_des,qd_des,t,model = T3_get_data(i,neural_network_or_random_forest)
+            goal,traj,_,_,_,_,model = T3_get_data(i,neural_network_or_random_forest)
             traj = T3_delete_error_points(traj)
             # Plot the predicted Cartesian positions over time in 3D
             ax.plot(traj[:, 0], traj[:, 1], traj[:, 2], 'b-'if model == "neural_network" else "g-", label=f'Predicted Position {model}')
@@ -186,6 +186,29 @@ def T3_plot_trajectory():
         ax.legend()
         # Save the plot
         plt.savefig(f"{save_path}trajectory_{i}.png")
+
+def T3_plot_joint_data():
+    for i in range(10):
+        for j in range(7):
+        # Plot position and velocity of each joint over time, sepeartely for position and velocity 
+            fig,ax = plt.subplots(1, 2, figsize=(12, 6))
+            for neural_network_or_random_forest in ['neural_network','random_forest']:
+                _,_,q_des,qd_des,q_final,t,model = T3_get_data(i,neural_network_or_random_forest)
+                ax[0].plot(t, q_des[:, j], 'b-'if model == "neural_network" else "g-", label=f'Predicted Position {model}')
+                ax[1].plot(t, qd_des[:, j], 'b-'if model == "neural_network" else "g-", label=f'Predicted Velocity {model}')
+            # ax[0].plot(t, warp_angle(q_final[j])*np.ones_like(t), 'r-', label='Final Predicted Position')
+            ax[0].set_title(f'Joint {j} Position')
+            ax[0].set_xlabel('Time [s]')
+            ax[0].set_ylabel('Position')
+            ax[0].legend()
+        
+            ax[1].set_title(f'Joint {j} Velocity')
+            ax[1].set_xlabel('Time [s]')
+            ax[1].set_ylabel('Velocity')
+            ax[1].legend()
+            # plt.show()
+            plt.savefig(f"{save_path}joint_{j}_{i}.png")
+
 #===================================================== Task 1 Visualization=====================================================
 # batch_list = [8,16,32,64,128,256,512,1000]
 # lr_list = [1.0, 1e-1, 1e-2, 1e-3 , 1e-4,1e-5,1e-6]
@@ -246,5 +269,5 @@ def T3_plot_trajectory():
 
 #===================================================== Task 3 Visualization=====================================================
 
-T3_plot_trajectory()
-
+T3_plot_joint_data()
+# T3_plot_trajectory()
